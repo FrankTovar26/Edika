@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unidades - EDIFIKA</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="sidebar">
+        <h2>EDIFIKA</h2>
+        <a href="index.html">🏠 Volver</a>
+    </nav>
+    <main>
+        <h1>Gestión de Unidades</h1>
+        <div class="card" style="margin-bottom: 20px;">
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <input type="text" id="n" placeholder="N° Depto" style="flex: 1;">
+                <input type="number" id="p" placeholder="Piso" style="flex: 1;">
+                <button class="btn btn-green" onclick="add()">+ Registrar</button>
+            </div>
+        </div>
+
+        <div class="card table-container">
+            <table>
+                <thead><tr><th>Unidad</th><th>Piso</th><th>Acciones</th></tr></thead>
+                <tbody id="lista-deptos"></tbody>
+            </table>
+        </div>
+    </main>
+    <script src="data.js"></script>
+    <script>
+        function add(){
+            const n = document.getElementById('n').value;
+            const p = document.getElementById('p').value;
+            if(!n || !p) return alert("Completa los campos");
+            const res = agregarDepartamento({numero: n, piso: p});
+            if(res.ok) render(); else alert(res.error);
+        }
+
+        function render(){
+            const lista = document.getElementById('lista-deptos');
+            lista.innerHTML = '';
+            obtenerTodo().departamentos.forEach(d => {
+                lista.innerHTML += `
+                <tr>
+                    <td><strong>${d.numero}</strong></td>
+                    <td>Piso ${d.piso}</td>
+                    <td>
+                        <button class="btn btn-red" onclick="borrar(${d.id})">Eliminar</button>
+                    </td>
+                </tr>`;
+            });
+        }
+
+        function borrar(id){
+            const r = eliminarDepartamento(id);
+            if(!r.ok) alert(r.error);
+            render();
+        }
+        window.onload = render;
+    </script>
+</body>
+</html>

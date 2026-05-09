@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8"><title>Invitaciones - EDIFIKA</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="sidebar">
+        <h2>EDIFIKA</h2>
+        <a href="index.html">🏠 Dashboard</a>
+        <a href="vinculacion.html">📩 Invitaciones</a>
+    </nav>
+    <main>
+        <h1>Invitaciones</h1>
+        <div class="card">
+            <form id="f-inv">
+                <select id="sel-depto" required><option value="">Seleccione Depto...</option></select>
+                <select id="rol"><option value="prop">Propietario</option><option value="inq">Inquilino</option></select>
+                <input type="email" id="mail" placeholder="Correo" required>
+                <button class="btn btn-blue">Enviar Invitación</button>
+            </form>
+        </div>
+        <div class="card">
+            <table id="t-inv">
+                <thead><tr><th>Unidad</th><th>Rol</th><th>Email</th><th>Estado</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </main>
+    <script src="data.js"></script>
+    <script>
+        const db = obtenerTodo();
+        const sel = document.getElementById('sel-depto');
+        db.departamentos.forEach(d => sel.innerHTML += `<option value="${d.id}">${d.numero}</option>`);
+
+        function render() {
+            const list = document.querySelector('tbody'); list.innerHTML = '';
+            obtenerTodo().departamentos.forEach(d => {
+                if(d.emailPropietario) list.innerHTML += `<tr><td>${d.numero}</td><td>Dueño</td><td>${d.emailPropietario}</td><td>${d.estadoInvitacion}</td></tr>`;
+                if(d.emailInquilino) list.innerHTML += `<tr><td>${d.numero}</td><td>Inquilino</td><td>${d.emailInquilino}</td><td>${d.estadoInquilino}</td></tr>`;
+            });
+        }
+
+        document.getElementById('f-inv').onsubmit = (e) => {
+            e.preventDefault();
+            const id = document.getElementById('sel-depto').value;
+            const mail = document.getElementById('mail').value;
+            const res = document.getElementById('rol').value === 'prop' ? vincularPropietario(id, mail) : vincularInquilino(id, mail);
+            if(res.ok) { alert("Enviado"); render(); } else alert(res.error);
+        };
+        render();
+    </script>
+</body>
+</html>

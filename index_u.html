@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Acceso Residentes - EDIFIKA</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .hidden { display: none; }
+        .form-activacion { max-width: 450px; margin: 40px auto; padding: 30px; border-top: 5px solid #3498db; }
+        .terminos { font-size: 0.85rem; color: #666; margin-top: 15px; }
+    </style>
+</head>
+<body style="background:#f0f2f5; display:block;">
+
+    <div id="section-login" class="card" style="max-width:400px; margin:100px auto; text-align:center;">
+        <h2>Portal Residentes</h2>
+        <input type="email" id="login-email" placeholder="Tu correo electrónico" style="width:90%; margin-bottom:10px;">
+        <button class="btn btn-blue" onclick="verificarUsuario()" style="width:95%;">Continuar</button>
+    </div>
+
+    <div id="section-activar" class="card form-activacion hidden">
+        <h2>Activar mi Cuenta</h2>
+        <p>Hola <strong id="display-email"></strong>, completa tus datos para empezar.</p>
+        <hr>
+        <div class="group">
+            <label>Nombre Completo *</label>
+            <input type="text" id="reg-nombre" required>
+        </div>
+        <div class="group">
+            <label>Documento de Identidad (DNI) *</label>
+            <input type="text" id="reg-dni" required>
+        </div>
+        <div class="group">
+            <label>Crear Contraseña *</label>
+            <input type="password" id="reg-pass" required>
+        </div>
+        <div class="terminos">
+            <input type="checkbox" id="reg-terms"> Acepto los T&C (uso exclusivo de datos para app y auditoría).
+        </div>
+        <button class="btn btn-green" onclick="completarRegistro()" style="width:100%; margin-top:20px;">Finalizar Activación</button>
+    </div>
+
+    <div id="section-dashboard" class="portal-container hidden" style="max-width:800px; margin:20px auto;">
+        <div class="card" style="background:#2c3e50; color:white;">
+            <h2 id="dash-bienvenida">Bienvenido</h2>
+            <p id="dash-unidad"></p>
+        </div>
+        <div class="card">
+            <h3>Mi Saldo</h3>
+            <p id="dash-saldo" style="font-size:2rem; font-weight:bold;"></p>
+        </div>
+        <button class="btn btn-red" onclick="location.reload()">Cerrar Sesión</button>
+    </div>
+
+    <script src="data.js"></script>
+    <script>
+        let temporalUser = null;
+
+        function verificarUsuario() {
+            const email = document.getElementById('login-email').value;
+            const db = obtenerTodo();
+            const depto = db.departamentos.find(d => d.emailPropietario === email || d.emailInquilino === email);
+
+            if (!depto) {
+                alert("Correo no encontrado en el sistema.");
+                return;
+            }
+
+            const esDueño = depto.emailPropietario === email;
+            const yaActivo = esDueño ? depto.estadoInvitacion === "Activo" : depto.estadoInquilino === "Activo";
+
+            temporalUser = { depto, rol: esDueño ? "Propietario" : "Inquilino", email };
+
+            if (!yaActivo) {
+                // FLUJO OBLIGATORIO: Ir a activación
+                document.getElementById('section-login').classList.add('hidden');
+                document.getElementById('section-activar').classList.remove('hidden');
+                document.getElementById('display-email').innerText = email;
+            } else {
+                // IR DIRECTO AL DASHBOARD (Aquí pediría contraseña en un sistema real)
+                abrirDashboard();
+            }
+        }
+
+        function completarRegistro() {
+            const nombre = document.getElementById('reg-nombre').value;
+            const dni = document.getElementById('reg-dni').value;
+            const pass = document.getElementById('reg-pass').value;
+            const terms = document.getElementById('reg-terms').checked;
+
+            if (!nombre || !dni || !pass) {
+                alert("Por favor, complete todos los campos obligatorios.");
+                return;
+            }
+            if (!terms) {
+                alert("Debe aceptar los términos y condiciones.");
+                return;
+            }
+
+            const res = activarCuenta(temporalUser.depto.id, temporalUser.rol, { nombre, dni, password: pass });
+            
+            if (res.ok) {
+                alert("¡Cuenta activada con éxito!");
+                abrirDashboard();
+            }
+        }
+
+        function abrirDashboard() {
+            document.getElementById('section-login').classList.add('hidden');
+            document.getElementById('section-activar').classList.add('hidden');
+            document.getElementById('section-dashboard').classList.remove('hidden');
+
+            const db = obtenerTodo();
+            const deptoActualizado = db.departamentos.find(d => d.id == temporalUser.depto.id);
+            const nombre = temporalUser.rol === "Propietario" ? deptoActualizado.nombreReal : deptoActualizado.nombreInquilino;
+
+            document.getElementById('dash-bienvenida').innerText = `Hola, ${nombre}`;
+            document.getElementById('dash-unidad').innerText = `Unidad ${deptoActualizado.numero} (${temporalUser.rol})`;
+            document.getElementById('dash-saldo').innerText = `$${deptoActualizado.saldo}`;
+        }
+    </script>
+</body>
+</html>
