@@ -1,54 +1,182 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8"><title>Invitaciones - EDIFIKA</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invitaciones - EDIFIKA</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <nav class="sidebar">
         <h2>EDIFIKA</h2>
-        <a href="index.html">🏠 Dashboard</a>
-        <a href="vinculacion.html">📩 Invitaciones</a>
+        <div class="sidebar-menu">
+            <a href="index.html">🏠 Dashboard</a>
+            <a href="departamentos.html">🏢 Unidades</a>
+            <a href="vinculacion.html" class="active">📩 Invitaciones</a>
+            <a href="areas.html">🌳 Áreas Comunes</a>
+            <a href="config.html">⚙️ Configuración</a>
+        </div>
     </nav>
+
     <main>
-        <h1>Invitaciones</h1>
+        <h1>Gestión de Invitaciones</h1>
+
         <div class="card">
-            <form id="f-inv">
-                <select id="sel-depto" required><option value="">Seleccione Depto...</option></select>
-                <select id="rol"><option value="prop">Propietario</option><option value="inq">Inquilino</option></select>
-                <input type="email" id="mail" placeholder="Correo" required>
-                <button class="btn btn-blue">Enviar Invitación</button>
+            <h3>Nueva Invitación</h3>
+            <p style="font-size: 0.8rem; color: #666; margin-bottom: 15px;">
+                Asigne propietarios o inquilinos a las unidades. <strong>Nota:</strong> Se requiere un propietario para registrar un inquilino.
+            </p>
+            <form class="form-group-container" onsubmit="event.preventDefault(); enviar();">
+                <div class="group">
+                    <label>Unidad</label>
+                    <select id="sel-depto" required>
+                        <option value="">Cargando unidades...</option>
+                    </select>
+                </div>
+                <div class="group">
+                    <label>Rol</label>
+                    <select id="sel-rol" required>
+                        <option value="prop">Propietario</option>
+                        <option value="inq">Inquilino</option>
+                    </select>
+                </div>
+                <div class="group" style="flex: 2;">
+                    <label>Correo Electrónico</label>
+                    <input type="email" id="email-inv" placeholder="correo@ejemplo.com" required>
+                </div>
+                <button class="btn btn-blue">Enviar</button>
             </form>
         </div>
+
         <div class="card">
-            <table id="t-inv">
-                <thead><tr><th>Unidad</th><th>Rol</th><th>Email</th><th>Estado</th></tr></thead>
-                <tbody></tbody>
-            </table>
+            <h3>Vinculaciones Registradas</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Unidad</th>
+                            <th>Rol</th>
+                            <th>Correo Electrónico</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lista-inv"></tbody>
+                </table>
+            </div>
         </div>
     </main>
+
     <script src="data.js"></script>
     <script>
-        const db = obtenerTodo();
-        const sel = document.getElementById('sel-depto');
-        db.departamentos.forEach(d => sel.innerHTML += `<option value="${d.id}">${d.numero}</option>`);
-
+        /**
+         * Renderiza el ComboBox y la Tabla con ordenamiento y acciones
+         */
         function render() {
-            const list = document.querySelector('tbody'); list.innerHTML = '';
-            obtenerTodo().departamentos.forEach(d => {
-                if(d.emailPropietario) list.innerHTML += `<tr><td>${d.numero}</td><td>Dueño</td><td>${d.emailPropietario}</td><td>${d.estadoInvitacion}</td></tr>`;
-                if(d.emailInquilino) list.innerHTML += `<tr><td>${d.numero}</td><td>Inquilino</td><td>${d.emailInquilino}</td><td>${d.estadoInquilino}</td></tr>`;
+            const db = obtenerTodo();
+            const sel = document.getElementById('sel-depto');
+            const list = document.getElementById('lista-inv');
+            
+            // Ordenamiento por Piso y Letra
+            const deptosOrdenados = [...db.departamentos].sort((a, b) => {
+                if (parseInt(a.piso) !== parseInt(b.piso)) return parseInt(a.piso) - parseInt(b.piso);
+                return a.numero.localeCompare(b.numero);
             });
+
+            // Llenar Select
+            sel.innerHTML = '<option value="">Seleccione Unidad...</option>';
+            deptosOrdenados.forEach(d => {
+                sel.innerHTML += `<option value="${d.id}">${d.numero}</option>`;
+            });
+
+            // Llenar Tabla
+            list.innerHTML = '';
+            deptosOrdenados.forEach(d => {
+                // Fila Propietario
+                if(d.emailPropietario) {
+                    list.innerHTML += crearFila(d.id, d.numero, 'Propietario', d.emailPropietario, d.estadoInvitacion, 'prop');
+                }
+                // Fila Inquilino
+                if(d.emailInquilino) {
+                    list.innerHTML += crearFila(d.id, d.numero, 'Inquilino', d.emailInquilino, d.estadoInquilino, 'inq');
+                }
+            });
+
+            if (list.innerHTML === '') {
+                list.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#999;">No hay vinculaciones activas.</td></tr>';
+            }
         }
 
-        document.getElementById('f-inv').onsubmit = (e) => {
-            e.preventDefault();
-            const id = document.getElementById('sel-depto').value;
-            const mail = document.getElementById('mail').value;
-            const res = document.getElementById('rol').value === 'prop' ? vincularPropietario(id, mail) : vincularInquilino(id, mail);
-            if(res.ok) { alert("Enviado"); render(); } else alert(res.error);
-        };
-        render();
+        /**
+         * Genera el HTML de cada fila con botones de acción
+         */
+        function crearFila(id, numero, rolTxt, email, estado, rolCode) {
+            const badgeClass = estado === 'Activo' ? 'vacio' : 'ocupado';
+            return `
+                <tr>
+                    <td><strong>${numero}</strong></td>
+                    <td>${rolTxt}</td>
+                    <td>${email}</td>
+                    <td><span class="badge ${badgeClass}">${estado}</span></td>
+                    <td>
+                        <button class="btn btn-blue" style="padding:5px 10px; font-size:12px;" onclick="editarMail(${id}, '${rolCode}', '${email}')" title="Editar Correo">📝</button>
+                        <button class="btn btn-red" style="padding:5px 10px; font-size:12px;" onclick="borrarVinculo(${id}, '${rolCode}')" title="Eliminar Vinculación">🗑️</button>
+                    </td>
+                </tr>`;
+        }
+
+        /**
+         * Procesa el envío de la invitación con validación de dueño
+         */
+        function enviar() {
+            const idDepto = document.getElementById('sel-depto').value;
+            const email = document.getElementById('email-inv').value.trim().toLowerCase();
+            const rol = document.getElementById('sel-rol').value;
+            const db = obtenerTodo();
+            const depto = db.departamentos.find(d => d.id == idDepto);
+
+            // Validación de regla de negocio
+            if (rol === 'inq' && !depto.emailPropietario) {
+                alert("❌ Error: No puede asignar un inquilino si la unidad no tiene un propietario.");
+                return;
+            }
+
+            const res = (rol === 'prop') ? vincularPropietario(idDepto, email) : vincularInquilino(idDepto, email);
+
+            if (res.ok) {
+                alert("✅ Invitación registrada.");
+                document.getElementById('email-inv').value = '';
+                render();
+            } else {
+                alert("❌ " + res.error);
+            }
+        }
+
+        /**
+         * Borra una vinculación (con advertencia de cascada para dueños)
+         */
+        function borrarVinculo(id, rol) {
+            let msg = "¿Eliminar esta vinculación?";
+            if(rol === 'prop') msg = "⚠️ ATENCIÓN: Si elimina al propietario, también se eliminará al inquilino vinculado. ¿Continuar?";
+            
+            if(confirm(msg)) {
+                eliminarVinculacion(id, rol);
+                render();
+            }
+        }
+
+        /**
+         * Permite actualizar el correo mediante un prompt
+         */
+        function editarMail(id, rol, mailActual) {
+            const nuevoMail = prompt("Editar correo electrónico:", mailActual);
+            if(nuevoMail && nuevoMail.toLowerCase() !== mailActual.toLowerCase()) {
+                actualizarCorreoInvitacion(id, rol, nuevoMail.toLowerCase());
+                render();
+            }
+        }
+
+        window.onload = render;
     </script>
 </body>
 </html>

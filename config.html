@@ -2,54 +2,67 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Configuración - EDIFIKA</title>
-    <link rel="stylesheet" href="style.css"> </head>
+    <link rel="stylesheet" href="style.css">
+</head>
 <body>
     <nav class="sidebar">
-        <h2>Admin</h2>
-        <a href="index.html">Dashboard</a>
-        <a href="departamentos.html">Departamentos</a>
+        <h2>EDIFIKA</h2>
+        <div class="sidebar-menu">
+            <a href="index.html">🏠 Dashboard</a>
+            <a href="departamentos.html">🏢 Unidades</a>
+            <a href="vinculacion.html">📩 Invitaciones</a>
+            <a href="areas.html">🌳 Áreas Comunes</a>
+            <a href="config.html" class="active">⚙️ Configuración</a>
+        </div>
     </nav>
     <main>
-        <h1>Alta / Edición del Edificio</h1>
-        <div class="card">
-            <form id="form-edificio">
-                <div style="margin-bottom: 15px;">
-                    <label>Nombre del Edificio:</label><br>
-                    <input type="text" id="nombre" required style="width: 100%;">
+        <div class="card" style="max-width: 500px; margin: 0 auto;">
+            <h1>Configuración</h1>
+            <form onsubmit="event.preventDefault(); save();">
+                <div class="group">
+                    <label>Nombre del Edificio</label>
+                    <input type="text" id="n" required>
                 </div>
-                <div style="margin-bottom: 15px;">
-                    <label>Dirección:</label><br>
-                    <input type="text" id="direccion" required style="width: 100%;">
+                <div class="group">
+                    <label>Dirección</label>
+                    <input type="text" id="d" required>
                 </div>
-                <div style="margin-bottom: 15px;">
-                    <label>Cantidad de Pisos:</label><br>
-                    <input type="number" id="pisos" required style="width: 100%;">
+                <div class="group">
+                    <label>Pisos</label>
+                    <input type="number" id="p" required>
                 </div>
-                <button type="submit" class="btn btn-blue">Guardar Información</button>
+                <button class="btn btn-blue" style="width: 100%; margin-top: 20px;">Guardar Edificio</button>
             </form>
+            <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
+            <button class="btn btn-red" onclick="limpiarDB()" style="width: 100%;">Borrar toda la Base de Datos</button>
         </div>
     </main>
-    <script src="data.js"></script> <script>
+    <script src="data.js"></script>
+    <script>
         const db = obtenerTodo();
-        if (db.configEdificio) {
-            document.getElementById('nombre').value = db.configEdificio.nombre;
-            document.getElementById('direccion').value = db.configEdificio.direccion;
-            document.getElementById('pisos').value = db.configEdificio.pisos;
+        if(db.configEdificio){
+            document.getElementById('n').value = db.configEdificio.nombre;
+            document.getElementById('d').value = db.configEdificio.direccion;
+            document.getElementById('p').value = db.configEdificio.pisos;
         }
+        function save(){
+    const nuevoPiso = document.getElementById('p').value;
+    const validacion = validarCambioPisos(nuevoPiso);
 
-        document.getElementById('form-edificio').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const data = obtenerTodo();
-            data.configEdificio = {
-                nombre: document.getElementById('nombre').value,
-                direccion: document.getElementById('direccion').value,
-                pisos: document.getElementById('pisos').value
-            };
-            guardarTodo(data);
-            alert("¡Edificio actualizado!");
-            window.location.href = "index.html";
-        });
+    if(!validacion.ok) {
+        alert(validacion.error);
+        return; // Detiene el guardado
+    }
+
+    guardarConfiguracionEdificio({
+        nombre: document.getElementById('n').value, 
+        direccion: document.getElementById('d').value, 
+        pisos: nuevoPiso
+    });
+    window.location.href="index.html";
+}
     </script>
 </body>
 </html>

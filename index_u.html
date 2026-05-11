@@ -2,121 +2,222 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Acceso Residentes - EDIFIKA</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal Residentes - EDIFIKA</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        .hidden { display: none; }
-        .form-activacion { max-width: 450px; margin: 40px auto; padding: 30px; border-top: 5px solid #3498db; }
-        .terminos { font-size: 0.85rem; color: #666; margin-top: 15px; }
+        /* Estilos del Calendario Visual */
+        .calendario-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr); 
+            gap: 8px;
+            margin-top: 15px;
+        }
+        .dia-cal {
+            border: 1px solid #eee;
+            padding: 10px 5px;
+            text-align: center;
+            border-radius: 8px;
+            min-height: 70px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            background: #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+        .dia-fecha { font-weight: bold; font-size: 1.1rem; color: var(--primary); }
+        .dia-nombre { color: #888; font-size: 0.6rem; text-transform: uppercase; font-weight: 600; }
+        .dia-estado { font-size: 0.6rem; font-weight: bold; padding: 3px; border-radius: 4px; margin-top: 5px; }
+        
+        /* Estados */
+        .cal-disponible { background: #d4f8e2; color: #27ae60; }
+        .cal-ocupado { background: #ffdada; color: #e74c3c; }
+        .cal-mio { background: #3498db; color: white; }
+
+        /* Vista de un solo día */
+        .vista-dia-unica {
+            grid-template-columns: 1fr !important;
+            max-width: 200px;
+            margin: 15px auto;
+        }
+
+        @media (max-width: 700px) {
+            .calendario-grid { grid-template-columns: repeat(3, 1fr); }
+        }
     </style>
 </head>
-<body style="background:#f0f2f5; display:block;">
+<body style="display: block; padding: 20px;">
 
-    <div id="section-login" class="card" style="max-width:400px; margin:100px auto; text-align:center;">
-        <h2>Portal Residentes</h2>
-        <input type="email" id="login-email" placeholder="Tu correo electrónico" style="width:90%; margin-bottom:10px;">
-        <button class="btn btn-blue" onclick="verificarUsuario()" style="width:95%;">Continuar</button>
+    <div id="v-login" class="card" style="max-width: 400px; margin: 50px auto;">
+        <h2 style="text-align: center; color: var(--primary);">Acceso Residentes</h2>
+        <div class="group"><label>Correo</label><input type="email" id="u-mail-login"></div>
+        <div class="group" style="margin-top:10px;"><label>Clave</label><input type="password" id="u-pass-login"></div>
+        <button class="btn btn-blue" style="width: 100%; margin-top: 20px;" onclick="login()">Entrar</button>
+        <button class="btn" style="width: 100%; margin-top: 10px; background: none; color: var(--accent);" onclick="mostrarVista('v-reg')">Activar Cuenta</button>
     </div>
 
-    <div id="section-activar" class="card form-activacion hidden">
-        <h2>Activar mi Cuenta</h2>
-        <p>Hola <strong id="display-email"></strong>, completa tus datos para empezar.</p>
-        <hr>
-        <div class="group">
-            <label>Nombre Completo *</label>
-            <input type="text" id="reg-nombre" required>
-        </div>
-        <div class="group">
-            <label>Documento de Identidad (DNI) *</label>
-            <input type="text" id="reg-dni" required>
-        </div>
-        <div class="group">
-            <label>Crear Contraseña *</label>
-            <input type="password" id="reg-pass" required>
-        </div>
-        <div class="terminos">
-            <input type="checkbox" id="reg-terms"> Acepto los T&C (uso exclusivo de datos para app y auditoría).
-        </div>
-        <button class="btn btn-green" onclick="completarRegistro()" style="width:100%; margin-top:20px;">Finalizar Activación</button>
+    <div id="v-reg" class="card" style="max-width: 450px; margin: 30px auto; display: none;">
+        <h2>Activar Cuenta</h2>
+        <div class="group"><label>Correo Invitación</label><input type="email" id="r-mail"></div>
+        <div class="group"><label>Nombre</label><input type="text" id="r-n"></div>
+        <div class="group"><label>DNI</label><input type="text" id="r-d"></div>
+        <div class="group"><label>Nueva Clave</label><input type="password" id="r-p"></div>
+        <button class="btn btn-green" style="width:100%; margin-top:15px;" onclick="reg()">Activar</button>
+        <button class="btn" style="width:100%; margin-top:10px; background:none;" onclick="mostrarVista('v-login')">Volver</button>
     </div>
 
-    <div id="section-dashboard" class="portal-container hidden" style="max-width:800px; margin:20px auto;">
-        <div class="card" style="background:#2c3e50; color:white;">
-            <h2 id="dash-bienvenida">Bienvenido</h2>
-            <p id="dash-unidad"></p>
+    <div id="v-dash" class="card" style="max-width: 1000px; margin: 20px auto; display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
+            <div>
+                <h2 id="d-ed" style="margin:0; color: var(--primary);">Edificio</h2>
+                <p id="d-u" style="margin:0; color: #666; font-size: 0.9rem;"></p>
+            </div>
+            <button class="btn btn-red" onclick="location.reload()">Salir</button>
         </div>
-        <div class="card">
-            <h3>Mi Saldo</h3>
-            <p id="dash-saldo" style="font-size:2rem; font-weight:bold;"></p>
+
+        <div style="display: grid; grid-template-columns: 250px 1fr; gap: 20px;" class="responsive-grid">
+            <div>
+                <div class="card" style="background: #f9f9f9; text-align: center; padding: 15px; margin:0;">
+                    <label style="font-size: 0.7rem; color: #888;">MI SALDO</label>
+                    <h2 id="d-s" style="margin: 5px 0; font-size: 2rem;">$0</h2>
+                </div>
+                <div id="mis-avisos" style="margin-top: 15px;"></div>
+            </div>
+
+            <div class="card" style="margin:0;">
+                <h3 style="margin-top: 0; font-size: 1rem;">Disponibilidad de Espacios</h3>
+                
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <div style="flex: 2;">
+                        <label style="font-size: 0.8rem;">Espacio Común</label>
+                        <select id="dash-res-area" onchange="renderCalendario()" style="width:100%; padding: 8px;"></select>
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="font-size: 0.8rem;">Ver por:</label>
+                        <select id="dash-res-vista" onchange="renderCalendario()" style="width:100%; padding: 8px;">
+                            <option value="1">Día</option>
+                            <option value="7" selected>Semana</option>
+                            <option value="30">Mes</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="calendario-grid" class="calendario-grid">
+                    </div>
+            </div>
         </div>
-        <button class="btn btn-red" onclick="location.reload()">Cerrar Sesión</button>
     </div>
 
     <script src="data.js"></script>
     <script>
-        let temporalUser = null;
-
-        function verificarUsuario() {
-            const email = document.getElementById('login-email').value;
-            const db = obtenerTodo();
-            const depto = db.departamentos.find(d => d.emailPropietario === email || d.emailInquilino === email);
-
-            if (!depto) {
-                alert("Correo no encontrado en el sistema.");
-                return;
-            }
-
-            const esDueño = depto.emailPropietario === email;
-            const yaActivo = esDueño ? depto.estadoInvitacion === "Activo" : depto.estadoInquilino === "Activo";
-
-            temporalUser = { depto, rol: esDueño ? "Propietario" : "Inquilino", email };
-
-            if (!yaActivo) {
-                // FLUJO OBLIGATORIO: Ir a activación
-                document.getElementById('section-login').classList.add('hidden');
-                document.getElementById('section-activar').classList.remove('hidden');
-                document.getElementById('display-email').innerText = email;
-            } else {
-                // IR DIRECTO AL DASHBOARD (Aquí pediría contraseña en un sistema real)
-                abrirDashboard();
-            }
+        function mostrarVista(id) {
+            document.querySelectorAll('body > div').forEach(div => div.style.display = 'none');
+            document.getElementById(id).style.display = 'block';
         }
 
-        function completarRegistro() {
-            const nombre = document.getElementById('reg-nombre').value;
-            const dni = document.getElementById('reg-dni').value;
-            const pass = document.getElementById('reg-pass').value;
-            const terms = document.getElementById('reg-terms').checked;
+        function login() {
+            const email = document.getElementById('u-mail-login').value;
+            const pass = document.getElementById('u-pass-login').value;
+            const db = obtenerTodo();
+            const depto = db.departamentos.find(x => x.emailPropietario === email || x.emailInquilino === email);
+            if (!depto) return alert("Usuario no encontrado.");
+            const esProp = depto.emailPropietario === email;
+            const passDB = esProp ? depto.password : depto.passwordInquilino;
+            if (passDB === pass) abrirDashboard(depto, esProp ? 'Propietario' : 'Inquilino');
+            else alert("Clave incorrecta.");
+        }
 
-            if (!nombre || !dni || !pass) {
-                alert("Por favor, complete todos los campos obligatorios.");
-                return;
-            }
-            if (!terms) {
-                alert("Debe aceptar los términos y condiciones.");
-                return;
-            }
+        function reg() {
+            const mail = document.getElementById('r-mail').value;
+            const db = obtenerTodo();
+            const depto = db.departamentos.find(x => x.emailPropietario === mail || x.emailInquilino === mail);
+            if (!depto) return alert("Correo no invitado.");
+            activarCuenta(depto.id, depto.emailPropietario === mail ? 'Propietario' : 'Inquilino', {
+                nombre: document.getElementById('r-n').value,
+                dni: document.getElementById('r-d').value,
+                password: document.getElementById('r-p').value
+            });
+            alert("Cuenta activada."); location.reload();
+        }
 
-            const res = activarCuenta(temporalUser.depto.id, temporalUser.rol, { nombre, dni, password: pass });
+        function abrirDashboard(d, rol) {
+            sessionStorage.setItem('sesion_usuario', JSON.stringify(d));
+            mostrarVista('v-dash');
+            const db = obtenerTodo();
+            document.getElementById('d-ed').innerText = db.configEdificio.nombre;
+            document.getElementById('d-u').innerText = `Unidad ${d.numero} | ${rol}`;
+            document.getElementById('d-s').innerText = `$${d.saldo || 0}`;
             
-            if (res.ok) {
-                alert("¡Cuenta activada con éxito!");
-                abrirDashboard();
+            const sArea = document.getElementById('dash-res-area');
+            sArea.innerHTML = '<option value="">Seleccionar área...</option>';
+            db.areasComunes.filter(a => a.estado === 'Disponible').forEach(a => {
+                sArea.innerHTML += `<option value="${a.id}">${a.nombre}</option>`;
+            });
+            cargarAvisos(d.id);
+        }
+
+        function renderCalendario() {
+            const db = obtenerTodo();
+            const areaId = document.getElementById('dash-res-area').value;
+            const vista = parseInt(document.getElementById('dash-res-vista').value);
+            const grid = document.getElementById('calendario-grid');
+            const user = JSON.parse(sessionStorage.getItem('sesion_usuario'));
+
+            grid.innerHTML = '';
+            if (!areaId) return;
+
+            // Ajuste de clase para vista de un solo día
+            if (vista === 1) grid.classList.add('vista-dia-unica');
+            else grid.classList.remove('vista-dia-unica');
+
+            const reservasArea = db.reservas.filter(r => r.areaId == areaId);
+
+            for (let i = 0; i < vista; i++) {
+                let fecha = new Date();
+                fecha.setDate(fecha.getDate() + i);
+                let fechaStr = fecha.toISOString().split('T')[0];
+                const reserva = reservasArea.find(r => r.fecha === fechaStr);
+                
+                let claseEstado = 'cal-disponible';
+                let txtEstado = 'DISPONIBLE';
+
+                if (reserva) {
+                    if (reserva.deptoId == user.id) {
+                        claseEstado = 'cal-mio'; txtEstado = 'MI RESERVA';
+                    } else {
+                        claseEstado = 'cal-ocupado'; txtEstado = 'OCUPADO';
+                    }
+                }
+
+                const diaSemana = fecha.toLocaleDateString('es-ES', { weekday: 'short' });
+                const numDia = fecha.getDate();
+
+                grid.innerHTML += `
+                    <div class="dia-cal">
+                        <span class="dia-nombre">${diaSemana}</span>
+                        <span class="dia-fecha">${numDia}</span>
+                        <span class="dia-estado ${claseEstado}">${txtEstado}</span>
+                    </div>
+                `;
             }
         }
 
-        function abrirDashboard() {
-            document.getElementById('section-login').classList.add('hidden');
-            document.getElementById('section-activar').classList.add('hidden');
-            document.getElementById('section-dashboard').classList.remove('hidden');
-
+        function cargarAvisos(deptoId) {
             const db = obtenerTodo();
-            const deptoActualizado = db.departamentos.find(d => d.id == temporalUser.depto.id);
-            const nombre = temporalUser.rol === "Propietario" ? deptoActualizado.nombreReal : deptoActualizado.nombreInquilino;
-
-            document.getElementById('dash-bienvenida').innerText = `Hola, ${nombre}`;
-            document.getElementById('dash-unidad').innerText = `Unidad ${deptoActualizado.numero} (${temporalUser.rol})`;
-            document.getElementById('dash-saldo').innerText = `$${deptoActualizado.saldo}`;
+            const misReservas = db.reservas.filter(r => r.deptoId == deptoId);
+            const contenedor = document.getElementById('mis-avisos');
+            contenedor.innerHTML = '<h4 style="margin:0 0 10px 0; font-size: 0.9rem;">Mensajes</h4>';
+            if (misReservas.length > 0) {
+                const ultima = misReservas[misReservas.length - 1];
+                const area = db.areasComunes.find(a => a.id == ultima.areaId);
+                contenedor.innerHTML += `
+                    <div style="background:#e3f2fd; padding:10px; border-radius:8px; font-size:0.8rem; border-left: 4px solid #3498db;">
+                        <strong>Reserva Confirmada</strong><br>
+                        Espacio: ${area.nombre}<br>Fecha: ${ultima.fecha}
+                    </div>`;
+            } else {
+                contenedor.innerHTML += '<p style="font-size:0.75rem; color:#999;">No tienes reservas próximas.</p>';
+            }
         }
     </script>
 </body>
