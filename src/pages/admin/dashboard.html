@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Administrador - EDIFIKA</title>
+
+    <link rel="stylesheet" href="../../assets/css/style.css">
+</head>
+<body>
+
+    <nav class="sidebar">
+        <h2>EDIFIKA</h2>
+
+        <div class="sidebar-menu">
+            <a href="dashboard.html" class="active">🏠 Dashboard</a>
+            <a href="departamentos.html">🏢 Unidades</a>
+            <a href="vinculacion.html">📩 Invitaciones</a>
+            <a href="areas.html">🌳 Áreas Comunes</a>
+            <a href="config.html">⚙️ Configuración</a>
+            <a href="../residente/inicio.html">🏠 Vista Usuario</a>
+            <a href="../../../index.html">🚪 Cerrar sesión</a>
+        </div>
+    </nav>
+
+    <main>
+        <h1 id="tituloEdificio">Cargando...</h1>
+
+        <section class="stats-grid">
+            <div class="card">
+                <span class="stat-number" id="totalUnidades">0</span>
+                <label>Total Unidades</label>
+            </div>
+
+            <div class="card">
+                <span class="stat-number" id="unidadesOcupadas">0</span>
+                <label>Ocupadas</label>
+            </div>
+
+            <div class="card">
+                <span class="stat-number" id="porcentajeOcupacion">0%</span>
+                <label>Ocupación</label>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="form-group-container">
+                <div class="group">
+                    <label for="filtroPiso">Piso</label>
+                    <select id="filtroPiso">
+                        <option value="">Todos</option>
+                    </select>
+                </div>
+
+                <div class="group">
+                    <label for="filtroEstado">Estado</label>
+                    <select id="filtroEstado">
+                        <option value="">Todos</option>
+                        <option value="ocupado">Ocupado</option>
+                        <option value="vacio">Vacío</option>
+                    </select>
+                </div>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>Unidades</h2>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Unidad</th>
+                            <th>Piso</th>
+                            <th>Residente</th>
+                            <th>Estado</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaUnidades">
+                        <!-- Se llena con JS -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <div id="modalDetalle" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" id="cerrarModal">&times;</span>
+            <h2>Detalle Unidad</h2>
+            <div id="detalleUnidad"></div>
+        </div>
+    </div>
+
+    <script src="../../assets/js/core/data.js"></script>
+    <script src="../../assets/js/pages/dashboard.js"></script>
+</body>
+</html>
