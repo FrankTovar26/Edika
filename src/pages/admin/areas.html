@@ -4,82 +4,140 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Áreas Comunes - EDIFIKA</title>
-    <link rel="stylesheet" href="style.css">
+
+    <link rel="stylesheet" href="../../assets/css/style.css">
 </head>
 <body>
+
     <nav class="sidebar">
         <h2>EDIFIKA</h2>
+
         <div class="sidebar-menu">
-            <a href="index.html">🏠 Dashboard</a>
+            <a href="dashboard.html">🏠 Dashboard</a>
             <a href="departamentos.html">🏢 Unidades</a>
             <a href="vinculacion.html">📩 Invitaciones</a>
             <a href="areas.html" class="active">🌳 Áreas Comunes</a>
             <a href="config.html">⚙️ Configuración</a>
+            <a href="../residente/inicio.html">🏠 Vista Usuario</a>
+            <a href="../../../index.html">🚪 Cerrar sesión</a>
         </div>
     </nav>
 
     <main>
         <h1>Gestión de Áreas Comunes</h1>
 
-        <div class="card">
-            <h3>Registrar Nueva Área</h3>
-            <form class="form-group-container" onsubmit="event.preventDefault(); guardarArea();">
-                <div class="group">
-                    <label>Nombre del Área</label>
-                    <input type="text" id="a-nom" placeholder="Ej: Piscina, SUM, Parrilla" required>
+        <section class="card">
+            <h2>Registrar Nueva Área</h2>
+
+            <form id="formArea">
+                <div class="form-group-container">
+
+                    <div class="group">
+                        <label for="nombreArea">Nombre del Área</label>
+                        <input 
+                            type="text" 
+                            id="nombreArea" 
+                            placeholder="Ej: Piscina, SUM, Parrilla" 
+                            required
+                        >
+                    </div>
+
+                    <div class="group">
+                        <label for="aforoArea">Aforo Máximo</label>
+                        <input 
+                            type="number" 
+                            id="aforoArea" 
+                            placeholder="Ej: 20" 
+                            min="1" 
+                            required
+                        >
+                    </div>
+
+                    <div class="group">
+                        <label for="descripcionArea">Descripción</label>
+                        <input 
+                            type="text" 
+                            id="descripcionArea" 
+                            placeholder="Breve descripción del espacio"
+                        >
+                    </div>
+
+                    <div class="group">
+                        <label for="estadoArea">Estado</label>
+
+                        <select id="estadoArea" required>
+                            <option value="disponible">Disponible</option>
+                            <option value="no_disponible">No disponible</option>
+                        </select>
+                    </div>
+
                 </div>
-                <div class="group">
-                    <label>Aforo Máximo</label>
-                    <input type="number" id="a-aforo" placeholder="Ej: 20" required min="1">
-                </div>
-                <div class="group" style="flex: 2;">
-                    <label>Descripción</label>
-                    <input type="text" id="a-desc" placeholder="Breve descripción del espacio" required>
-                </div>
-                <button class="btn btn-green">Registrar Área</button>
+
+                <button 
+                    type="submit" 
+                    class="btn btn-green" 
+                    style="margin-top: 15px;"
+                >
+                    Registrar Área
+                </button>
             </form>
-        </div>
+        </section>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; flex-wrap: wrap;" class="responsive-grid">
-            <div class="card">
-                <h3>Áreas y Estado</h3>
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Nombre</th>
-                                <th>Aforo</th>
-                                <th>Estado</th>
-                                <th>Acción</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tabla-areas"></tbody>
-                    </table>
+        <section class="card">
+            <h2>Áreas Registradas</h2>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Aforo</th>
+                            <th>Descripción</th>
+                            <th>Estado</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaAreas">
+                        <!-- Se llena con JS -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>Registrar Reserva</h2>
+
+            <form id="formReserva">
+                <div class="form-group-container">
+                    <div class="group">
+                        <label for="areaReserva">Seleccionar Área</label>
+                        <select id="areaReserva" required>
+                            <option value="">Seleccione un área</option>
+                        </select>
+                    </div>
+
+                    <div class="group">
+                        <label for="departamentoReserva">Departamento que solicita</label>
+                        <select id="departamentoReserva" required>
+                            <option value="">Seleccione unidad</option>
+                        </select>
+                    </div>
+
+                    <div class="group">
+                        <label for="fechaReserva">Fecha</label>
+                        <input type="date" id="fechaReserva" required>
+                    </div>
                 </div>
-            </div>
 
-            <div class="card">
-                <h3>Registrar Reserva</h3>
-                <form onsubmit="event.preventDefault(); guardarReserva();">
-                    <div class="group">
-                        <label>Seleccionar Área</label>
-                        <select id="res-area" required></select>
-                    </div>
-                    <div class="group">
-                        <label>Departamento que solicita</label>
-                        <select id="res-depto" required></select>
-                    </div>
-                    <div class="group">
-                        <label>Fecha</label>
-                        <input type="date" id="res-fecha" required>
-                    </div>
-                    <button class="btn btn-blue" style="width: 100%; margin-top: 10px;">Confirmar Reserva</button>
-                </form>
-            </div>
-        </div>
+                <button type="submit" class="btn btn-blue" style="margin-top: 15px;">
+                    Confirmar Reserva
+                </button>
+            </form>
+        </section>
 
-        <div class="card">
-            <h3>Reservas Registradas</h3>
+        <section class="card">
+            <h2>Reservas Registradas</h2>
+
             <div class="table-container">
                 <table>
                     <thead>
@@ -90,109 +148,15 @@
                             <th>Acciones</th>
                         </tr>
                     </thead>
-                    <tbody id="tabla-reservas"></tbody>
+                    <tbody id="tablaReservas">
+                        <!-- Se llena con JS -->
+                    </tbody>
                 </table>
             </div>
-        </div>
+        </section>
     </main>
 
-    <script src="data.js"></script>
-    <script>
-        function render() {
-            const db = obtenerTodo();
-            
-            // Render Tablas de Áreas
-            const tAreas = document.getElementById('tabla-areas');
-            const sArea = document.getElementById('res-area');
-            tAreas.innerHTML = '';
-            sArea.innerHTML = '<option value="">Seleccione Área...</option>';
-
-            db.areasComunes = db.areasComunes || [];
-            db.areasComunes.forEach(a => {
-                const badge = a.estado === 'Disponible' ? 'vacio' : 'ocupado';
-                const btnTxt = a.estado === 'Disponible' ? '❌ Desactivar' : '✅ Activar';
-                
-                tAreas.innerHTML += `
-                    <tr>
-                        <td><strong>${a.nombre}</strong><br><small>${a.descripcion}</small></td>
-                        <td>${a.aforo} pers.</td>
-                        <td><span class="badge ${badge}">${a.estado}</span></td>
-                        <td><button class="btn" style="padding:5px; font-size:10px; background:#eee;" onclick="toggleArea(${a.id})">${btnTxt}</button></td>
-                    </tr>
-                `;
-
-                if(a.estado === 'Disponible') {
-                    sArea.innerHTML += `<option value="${a.id}">${a.nombre}</option>`;
-                }
-            });
-
-            // Llenar Select de Deptos (Ordenados)
-            const sDepto = document.getElementById('res-depto');
-            sDepto.innerHTML = '<option value="">Seleccione Unidad...</option>';
-            const deptos = [...db.departamentos].sort((a,b) => a.numero.localeCompare(b.numero));
-            deptos.forEach(d => sDepto.innerHTML += `<option value="${d.id}">${d.numero}</option>`);
-
-            // Render Tabla de Reservas
-            const tRes = document.getElementById('tabla-reservas');
-            tRes.innerHTML = '';
-            db.reservas = db.reservas || [];
-            db.reservas.forEach(r => {
-                const area = db.areasComunes.find(a => a.id == r.areaId);
-                const depto = db.departamentos.find(d => d.id == r.deptoId);
-                tRes.innerHTML += `
-                    <tr>
-                        <td>${area ? area.nombre : 'Eliminado'}</td>
-                        <td>${depto ? depto.numero : 'Desconocido'}</td>
-                        <td>${r.fecha}</td>
-                        <td><button class="btn btn-red" style="padding:5px 10px;" onclick="borrarReserva(${r.id})">🗑️</button></td>
-                    </tr>
-                `;
-            });
-        }
-
-        function guardarArea() {
-            const area = {
-                nombre: document.getElementById('a-nom').value,
-                aforo: document.getElementById('a-aforo').value,
-                descripcion: document.getElementById('a-desc').value
-            };
-            agregarAreaComun(area);
-            document.querySelectorAll('input').forEach(i => i.value = '');
-            render();
-        }
-
-        function toggleArea(id) {
-            const db = obtenerTodo();
-            const area = db.areasComunes.find(a => a.id == id);
-            area.estado = area.estado === 'Disponible' ? 'Fuera de Servicio' : 'Disponible';
-            guardarTodo(db);
-            render();
-        }
-
-        function guardarReserva() {
-            const res = {
-                areaId: document.getElementById('res-area').value,
-                deptoId: document.getElementById('res-depto').value,
-                fecha: document.getElementById('res-fecha').value
-            };
-            registrarReserva(res);
-            render();
-        }
-
-        function borrarReserva(id) {
-            const db = obtenerTodo();
-            db.reservas = db.reservas.filter(r => r.id !== id);
-            guardarTodo(db);
-            render();
-        }
-
-        window.onload = render;
-    </script>
-
-    <style>
-        @media (max-width: 800px) {
-            .responsive-grid { grid-template-columns: 1fr !important; }
-        }
-    </style>
+    <script src="../../assets/js/core/data.js"></script>
+    <script src="../../assets/js/pages/areas.js"></script>
 </body>
 </html>

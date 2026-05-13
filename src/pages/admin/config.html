@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuración - EDIFIKA</title>
+
+    <link rel="stylesheet" href="../../assets/css/style.css">
+</head>
+<body>
+
+    <nav class="sidebar">
+        <h2>EDIFIKA</h2>
+
+        <div class="sidebar-menu">
+            <a href="dashboard.html">🏠 Dashboard</a>
+            <a href="departamentos.html">🏢 Unidades</a>
+            <a href="vinculacion.html">📩 Invitaciones</a>
+            <a href="areas.html">🌳 Áreas Comunes</a>
+            <a href="config.html" class="active">⚙️ Configuración</a>
+            <a href="../residente/inicio.html">🏠 Vista Usuario</a>
+            <a href="../../../index.html">🚪 Cerrar sesión</a>
+        </div>
+    </nav>
+
+    <main>
+        <section class="card" style="max-width: 500px; margin: 0 auto;">
+            <h1>Configuración</h1>
+
+            <form id="formConfig">
+                <div class="group">
+                    <label for="nombreEdificio">Nombre del Edificio</label>
+                    <input type="text" id="nombreEdificio" required>
+                </div>
+
+                <div class="group">
+                    <label for="direccionEdificio">Dirección</label>
+                    <input type="text" id="direccionEdificio" required>
+                </div>
+
+                <div class="group">
+                    <label for="pisosEdificio">Pisos</label>
+                    <input type="number" id="pisosEdificio" min="1" required>
+                </div>
+
+                <button type="submit" class="btn btn-blue" style="width: 100%; margin-top: 20px;">
+                    Guardar Edificio
+                </button>
+            </form>
+
+            <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
+
+            <button id="btnLimpiarDB" class="btn btn-red" style="width: 100%;">
+                Borrar toda la Base de Datos
+            </button>
+        </section>
+    </main>
+
+    <script src="../../assets/js/core/data.js"></script>
+    <script src="../../assets/js/pages/config.js"></script>
+</body>
+</html>

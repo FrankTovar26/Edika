@@ -196,3 +196,71 @@ function limpiarDB() {
     localStorage.removeItem('edifika_db');
     location.reload();
 }
+
+function agregarReservaArea(reserva) {
+    const db = obtenerTodo();
+
+    db.reservas = db.reservas || [];
+
+    const yaExiste = db.reservas.some(r =>
+        String(r.areaId) === String(reserva.areaId) &&
+        String(r.fecha) === String(reserva.fecha)
+    );
+
+    if (yaExiste) {
+        return {
+            ok: false,
+            error: "Esta área ya tiene una reserva registrada para esa fecha."
+        };
+    }
+
+    const nuevaReserva = {
+        id: Date.now(),
+        areaId: reserva.areaId,
+        departamentoId: reserva.departamentoId,
+        fecha: reserva.fecha,
+        estado: "activa"
+    };
+
+    db.reservas.push(nuevaReserva);
+
+    guardarTodo(db);
+
+    return {
+        ok: true,
+        reserva: nuevaReserva
+    };
+}
+
+function eliminarReservaArea(id) {
+    const db = obtenerTodo();
+
+    db.reservas = db.reservas || [];
+
+    db.reservas = db.reservas.filter(r => String(r.id) !== String(id));
+
+    guardarTodo(db);
+
+    return {
+        ok: true
+    };
+}
+
+function agregarAreaComun(area) {
+    const db = obtenerTodo();
+
+    db.areasComunes = db.areasComunes || [];
+
+    const nuevaArea = {
+        id: Date.now(),
+        nombre: area.nombre,
+        aforo: area.aforo,
+        descripcion: area.descripcion,
+        estado: area.estado || "disponible"
+    };
+
+    db.areasComunes.push(nuevaArea);
+    guardarTodo(db);
+
+    return { ok: true, area: nuevaArea };
+}
