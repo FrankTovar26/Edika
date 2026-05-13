@@ -31,7 +31,6 @@
 
             <form id="formArea">
                 <div class="form-group-container">
-
                     <div class="group">
                         <label for="nombreArea">Nombre del Área</label>
                         <input 
@@ -64,20 +63,14 @@
 
                     <div class="group">
                         <label for="estadoArea">Estado</label>
-
                         <select id="estadoArea" required>
                             <option value="disponible">Disponible</option>
                             <option value="no_disponible">No disponible</option>
                         </select>
                     </div>
-
                 </div>
 
-                <button 
-                    type="submit" 
-                    class="btn btn-green" 
-                    style="margin-top: 15px;"
-                >
+                <button type="submit" class="btn btn-green" style="margin-top: 15px;">
                     Registrar Área
                 </button>
             </form>
@@ -105,9 +98,11 @@
         </section>
 
         <section class="card">
-            <h2>Registrar Reserva</h2>
+            <h2>Registrar / Editar Reserva</h2>
 
             <form id="formReserva">
+                <input type="hidden" id="reservaAdminId">
+
                 <div class="form-group-container">
                     <div class="group">
                         <label for="areaReserva">Seleccionar Área</label>
@@ -127,11 +122,13 @@
                         <label for="fechaReserva">Fecha</label>
                         <input type="date" id="fechaReserva" required>
                     </div>
-                </div>
 
-                <button type="submit" class="btn btn-blue" style="margin-top: 15px;">
-                    Confirmar Reserva
-                </button>
+                    <div class="group" style="justify-content: flex-end;">
+                        <button type="submit" class="btn btn-blue">
+                            Guardar Reserva
+                        </button>
+                    </div>
+                </div>
             </form>
         </section>
 

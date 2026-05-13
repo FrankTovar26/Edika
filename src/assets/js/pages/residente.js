@@ -19,16 +19,19 @@ function cargarVistaResidente() {
     document.getElementById("bienvenida").textContent =
         `Bienvenido, ${sesion?.nombre || "Residente"}`;
 
-    cargarEstadisticasResidente(db);
+    cargarEstadisticasResidente(db, sesion);
     renderizarAreasResidente(db);
-    renderizarReservasResidente(db);
+    renderizarUltimasReservasResidente(db, sesion);
 }
 
-function cargarEstadisticasResidente(db) {
-    const areas = db.areasComunes || [];
-    const reservas = db.reservas || [];
+function cargarEstadisticasResidente(db, sesion) {
+    const areasDisponibles = (db.areasComunes || []).filter(area =>
+        normalizarEstadoArea(area.estado) === "disponible"
+    );
 
-    document.getElementById("totalAreas").textContent = areas.length;
+    const reservas = obtenerReservasDelResidente(db, sesion);
+
+    document.getElementById("totalAreas").textContent = areasDisponibles.length;
     document.getElementById("totalReservas").textContent = reservas.length;
 }
 
@@ -47,28 +50,32 @@ function renderizarAreasResidente(db) {
         return;
     }
 
-    tabla.innerHTML = areas.map(area => `
-        <tr>
-            <td>${area.nombre}</td>
-            <td>${area.aforo}</td>
-            <td>${area.descripcion || "-"}</td>
-            <td>
-                <span class="badge ${area.estado === "disponible" ? "vacio" : "ocupado"}">
-                    ${area.estado === "disponible" ? "Disponible" : "No disponible"}
-                </span>
-            </td>
-        </tr>
-    `).join("");
+    tabla.innerHTML = areas.map(area => {
+        const disponible = normalizarEstadoArea(area.estado) === "disponible";
+
+        return `
+            <tr>
+                <td>${area.nombre}</td>
+                <td>${area.aforo}</td>
+                <td>${area.descripcion || "-"}</td>
+                <td>
+                    <span class="badge ${disponible ? "vacio" : "ocupado"}">
+                        ${disponible ? "Disponible" : "No disponible"}
+                    </span>
+                </td>
+            </tr>
+        `;
+    }).join("");
 }
 
-function renderizarReservasResidente(db) {
+function renderizarUltimasReservasResidente(db, sesion) {
     const tabla = document.getElementById("tablaReservasResidente");
 
-    const reservas = db.reservas || [];
+    if (!tabla) return;
+
+    const reservas = obtenerReservasDelResidente(db, sesion).slice(-5);
     const areas = db.areasComunes || [];
     const departamentos = db.departamentos || [];
-
-    if (!tabla) return;
 
     if (reservas.length === 0) {
         tabla.innerHTML = `
@@ -91,4 +98,23 @@ function renderizarReservasResidente(db) {
             </tr>
         `;
     }).join("");
+}
+
+function obtenerReservasDelResidente(db, sesion) {
+    return (db.reservas || []).filter(reserva =>
+        String(reserva.departamentoId) === String(sesion?.departamentoId)
+    );
+}
+
+function normalizarEstadoArea(estado) {
+    if (!estado) return "disponible";
+
+    const valor = String(estado).toLowerCase().trim();
+
+    if (valor === "disponible") return "disponible";
+    if (valor === "no disponible") return "no_disponible";
+    if (valor === "no_disponible") return "no_disponible";
+    if (valor === "mantenimiento") return "no_disponible";
+
+    return "disponible";
 }

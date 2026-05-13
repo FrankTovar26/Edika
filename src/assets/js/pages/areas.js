@@ -62,6 +62,7 @@ function configurarFormularioReserva() {
     form.addEventListener("submit", event => {
         event.preventDefault();
 
+        const reservaId = document.getElementById("reservaAdminId").value;
         const areaId = document.getElementById("areaReserva").value;
         const departamentoId = document.getElementById("departamentoReserva").value;
         const fecha = document.getElementById("fechaReserva").value;
@@ -79,21 +80,19 @@ function configurarFormularioReserva() {
             return;
         }
 
-        const resultado = agregarReservaArea({
-            areaId,
-            departamentoId,
-            fecha
-        });
+        const resultado = reservaId
+            ? editarReservaArea(reservaId, { areaId, departamentoId, fecha })
+            : agregarReservaArea({ areaId, departamentoId, fecha });
 
         if (!resultado.ok) {
             alert(resultado.error);
             return;
         }
 
-        form.reset();
+        limpiarFormularioReservaAdmin();
         renderizarReservas();
 
-        alert("Reserva registrada correctamente.");
+        alert(reservaId ? "Reserva actualizada correctamente." : "Reserva registrada correctamente.");
     });
 }
 
@@ -192,7 +191,7 @@ function renderizarReservas() {
     if (reservas.length === 0) {
         tabla.innerHTML = `
             <tr>
-                <td colspan="4">No hay reservas registradas.</td>
+                <td colspan="5">No hay reservas registradas.</td>
             </tr>
         `;
         return;
@@ -208,8 +207,12 @@ function renderizarReservas() {
                 <td>${departamento?.numero || "-"}</td>
                 <td>${reserva.fecha}</td>
                 <td>
+                    <button class="btn btn-blue" onclick="cargarReservaAdminParaEditar('${reserva.id}')">
+                        Editar
+                    </button>
+
                     <button class="btn btn-red" onclick="eliminarReserva('${reserva.id}')">
-                        Eliminar
+                        Cancelar
                     </button>
                 </td>
             </tr>
@@ -283,4 +286,33 @@ function normalizarEstadoArea(estado) {
     if (valor === "mantenimiento") return "no_disponible";
 
     return "disponible";
+}
+
+function cargarReservaAdminParaEditar(id) {
+    const db = obtenerTodo();
+
+    const reserva = (db.reservas || []).find(r => String(r.id) === String(id));
+
+    if (!reserva) {
+        alert("Reserva no encontrada.");
+        return;
+    }
+
+    document.getElementById("reservaAdminId").value = reserva.id;
+    document.getElementById("areaReserva").value = reserva.areaId;
+    document.getElementById("departamentoReserva").value = reserva.departamentoId;
+    document.getElementById("fechaReserva").value = reserva.fecha;
+
+    window.scrollTo({
+        top: document.getElementById("formReserva").offsetTop - 80,
+        behavior: "smooth"
+    });
+}
+
+function limpiarFormularioReservaAdmin() {
+    const form = document.getElementById("formReserva");
+    const reservaId = document.getElementById("reservaAdminId");
+
+    if (form) form.reset();
+    if (reservaId) reservaId.value = "";
 }

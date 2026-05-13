@@ -4,85 +4,84 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Unidades - EDIFIKA</title>
-
     <link rel="stylesheet" href="../../assets/css/style.css">
 </head>
 <body>
 
-    <nav class="sidebar">
-        <h2>EDIFIKA</h2>
+<nav class="sidebar">
+    <h2>EDIFIKA</h2>
+    <div class="sidebar-menu">
+        <a href="dashboard.html">🏠 Dashboard</a>
+        <a href="departamentos.html" class="active">🏢 Unidades</a>
+        <a href="vinculacion.html">📩 Invitaciones</a>
+        <a href="areas.html">🌳 Áreas Comunes</a>
+        <a href="config.html">⚙️ Configuración</a>
+        <a href="../residente/inicio.html">🏠 Vista Usuario</a>
+        <a href="../../../index.html">🚪 Cerrar sesión</a>
+    </div>
+</nav>
 
-        <div class="sidebar-menu">
-            <a href="dashboard.html">🏠 Dashboard</a>
-            <a href="departamentos.html" class="active">🏢 Unidades</a>
-            <a href="vinculacion.html">📩 Invitaciones</a>
-            <a href="areas.html">🌳 Áreas Comunes</a>
-            <a href="config.html">⚙️ Configuración</a>
-            <a href="../residente/inicio.html">🏠 Vista Usuario</a>
-            <a href="../../../index.html">🚪 Cerrar sesión</a>
-        </div>
-    </nav>
+<main>
+    <h1>Gestión de Unidades</h1>
 
-    <main>
-        <h1>Gestión de Unidades</h1>
+    <section class="card">
+        <h2>Registrar / Editar Unidad</h2>
 
-        <section class="card">
-            <h2>Registrar Nueva Unidad</h2>
+        <p style="font-size: 0.85rem; color: #666; margin-bottom: 15px;">
+            Formato requerido: <strong>Piso-Letra</strong> Ejemplo: 1-A, 2-B.
+        </p>
 
-            <p style="font-size: 0.85rem; color: #666; margin-bottom: 15px;">
-                Formato requerido: <strong>Piso-Letra</strong> Ejemplo: 1-A, 2-B.
-            </p>
+        <form id="formDepartamento" class="form-group-container">
+            <input type="hidden" id="departamentoId">
 
-            <form id="formDepartamento" class="form-group-container">
-                <div class="group">
-                    <label for="numeroDepartamento">N° Depto</label>
-                    <input 
-                        type="text" 
-                        id="numeroDepartamento" 
-                        placeholder="Ej: 1-A" 
-                        required
-                        autocomplete="off"
-                        style="text-transform: uppercase;"
-                    >
-                </div>
-
-                <div class="group">
-                    <label for="pisoDepartamento">Piso Correspondiente</label>
-                    <select id="pisoDepartamento" required>
-                        <option value="">Cargando pisos...</option>
-                    </select>
-                </div>
-
-                <div class="group" style="justify-content: flex-end;">
-                    <button type="submit" class="btn btn-green">
-                        + Registrar
-                    </button>
-                </div>
-            </form>
-        </section>
-
-        <section class="card">
-            <h2>Unidades Registradas</h2>
-
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Unidad</th>
-                            <th>Piso</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-
-                    <tbody id="listaDepartamentos">
-                        <!-- Se llena con JS -->
-                    </tbody>
-                </table>
+            <div class="group">
+                <label for="numeroDepartamento">N° Depto</label>
+                <input 
+                    type="text" 
+                    id="numeroDepartamento" 
+                    placeholder="Ej: 1-A" 
+                    required
+                    autocomplete="off"
+                    style="text-transform: uppercase;"
+                >
             </div>
-        </section>
-    </main>
 
-    <script src="../../assets/js/core/data.js"></script>
-    <script src="../../assets/js/pages/departamentos.js"></script>
+            <div class="group">
+                <label for="pisoDepartamento">Piso Correspondiente</label>
+                <select id="pisoDepartamento" required>
+                    <option value="">Cargando pisos...</option>
+                </select>
+            </div>
+
+            <div class="group" style="justify-content: flex-end;">
+                <button type="submit" class="btn btn-green">
+                    Guardar
+                </button>
+            </div>
+        </form>
+    </section>
+
+    <section class="card">
+        <h2>Unidades Registradas</h2>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Unidad</th>
+                        <th>Piso</th>
+                        <th>Fecha registro</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+
+                <tbody id="listaDepartamentos"></tbody>
+            </table>
+        </div>
+    </section>
+</main>
+
+<script src="../../assets/js/core/data.js"></script>
+<script src="../../assets/js/pages/departamentos.js"></script>
 </body>
 </html>

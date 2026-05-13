@@ -34,44 +34,191 @@ function guardarConfiguracionEdificio(config) {
 
 function agregarDepartamento(depto) {
     const db = obtenerTodo();
+
     if (!db.configEdificio || !db.configEdificio.pisos) {
-        return { ok: false, error: "Primero debe configurar el edificio (Cantidad de pisos)." };
+        return {
+            ok: false,
+            error: "Primero debe configurar el edificio."
+        };
     }
-    const maxPisos = parseInt(db.configEdificio.pisos);
+
+    db.departamentos = db.departamentos || [];
+
+    const numero = depto.numero.trim().toUpperCase();
+    const piso = String(depto.piso);
+
     const formatoValido = /^[0-9]+-[A-Z]$/;
 
-    if (!formatoValido.test(depto.numero)) {
-        return { ok: false, error: "Formato inválido. Use: Piso-Letra (Ej: 1-A)." };
+    if (!formatoValido.test(numero)) {
+        return {
+            ok: false,
+            error: "Formato inválido. Use: Piso-Letra. Ejemplo: 1-A."
+        };
     }
-    const pisoExtraido = parseInt(depto.numero.split('-')[0]);
-    const pisoIngresado = parseInt(depto.piso);
+
+    const pisoExtraido = Number(numero.split("-")[0]);
+    const pisoIngresado = Number(piso);
+    const maxPisos = Number(db.configEdificio.pisos);
 
     if (pisoExtraido !== pisoIngresado) {
-        return { ok: false, error: `Inconsistencia: El departamento indica piso ${pisoExtraido} pero seleccionó piso ${pisoIngresado}.` };
-    }
-    if (pisoIngresado > maxPisos) {
-        return { ok: false, error: `Error: El edificio solo tiene ${maxPisos} pisos.` };
-    }
-    if (db.departamentos.find(d => d.numero === depto.numero)) {
-        return { ok: false, error: "Esta unidad ya existe." };
+        return {
+            ok: false,
+            error: `Inconsistencia: el código indica piso ${pisoExtraido}, pero seleccionaste piso ${pisoIngresado}.`
+        };
     }
 
-    depto.id = Date.now();
-    depto.saldo = 0;
-    db.departamentos.push(depto);
+    if (pisoIngresado > maxPisos) {
+        return {
+            ok: false,
+            error: `El edificio solo tiene ${maxPisos} pisos.`
+        };
+    }
+
+    const existe = db.departamentos.some(d =>
+        String(d.numero).toUpperCase() === numero
+    );
+
+    if (existe) {
+        return {
+            ok: false,
+            error: "Esta unidad ya existe."
+        };
+    }
+
+    const nuevoDepartamento = {
+        id: Date.now(),
+        numero,
+        piso,
+        saldo: 0,
+        residente: "",
+        emailPropietario: "",
+        estadoInvitacion: "",
+        emailInquilino: "",
+        estadoInquilino: "",
+        fechaRegistro: new Date().toISOString()
+    };
+
+    db.departamentos.push(nuevoDepartamento);
     guardarTodo(db);
-    return { ok: true };
+
+    return {
+        ok: true,
+        departamento: nuevoDepartamento
+    };
+}
+
+function editarDepartamento(id, datos) {
+    const db = obtenerTodo();
+
+    const departamento = (db.departamentos || []).find(dep =>
+        String(dep.id) === String(id)
+    );
+
+    if (!departamento) {
+        return {
+            ok: false,
+            error: "La unidad no existe."
+        };
+    }
+
+    const numero = datos.numero.trim().toUpperCase();
+    const piso = String(datos.piso);
+
+    const formatoValido = /^[0-9]+-[A-Z]$/;
+
+    if (!formatoValido.test(numero)) {
+        return {
+            ok: false,
+            error: "Formato inválido. Use: Piso-Letra. Ejemplo: 1-A."
+        };
+    }
+
+    const pisoExtraido = Number(numero.split("-")[0]);
+    const pisoIngresado = Number(piso);
+    const maxPisos = Number(db.configEdificio.pisos);
+
+    if (pisoExtraido !== pisoIngresado) {
+        return {
+            ok: false,
+            error: `Inconsistencia: el código indica piso ${pisoExtraido}, pero seleccionaste piso ${pisoIngresado}.`
+        };
+    }
+
+    if (pisoIngresado > maxPisos) {
+        return {
+            ok: false,
+            error: `El edificio solo tiene ${maxPisos} pisos.`
+        };
+    }
+
+    const duplicado = db.departamentos.some(dep =>
+        String(dep.id) !== String(id) &&
+        String(dep.numero).toUpperCase() === numero
+    );
+
+    if (duplicado) {
+        return {
+            ok: false,
+            error: "Ya existe otra unidad con ese número."
+        };
+    }
+
+    departamento.numero = numero;
+    departamento.piso = piso;
+
+    if (!departamento.fechaRegistro) {
+        departamento.fechaRegistro = new Date().toISOString();
+    }
+
+    guardarTodo(db);
+
+    return {
+        ok: true,
+        departamento
+    };
 }
 
 function eliminarDepartamento(id) {
     const db = obtenerTodo();
-    const depto = db.departamentos.find(d => d.id === id);
-    if (depto.emailPropietario || depto.emailInquilino) {
-        return { ok: false, error: "No se puede eliminar una unidad vinculada." };
+
+    const departamento = (db.departamentos || []).find(dep =>
+        String(dep.id) === String(id)
+    );
+
+    if (!departamento) {
+        return {
+            ok: false,
+            error: "La unidad no existe."
+        };
     }
-    db.departamentos = db.departamentos.filter(d => d.id !== id);
+
+    if (departamento.emailPropietario || departamento.emailInquilino) {
+        return {
+            ok: false,
+            error: "No se puede eliminar una unidad vinculada a un residente."
+        };
+    }
+
+    const tieneReservas = (db.reservas || []).some(reserva =>
+        String(reserva.departamentoId) === String(id)
+    );
+
+    if (tieneReservas) {
+        return {
+            ok: false,
+            error: "No se puede eliminar una unidad con reservas registradas."
+        };
+    }
+
+    db.departamentos = db.departamentos.filter(dep =>
+        String(dep.id) !== String(id)
+    );
+
     guardarTodo(db);
-    return { ok: true };
+
+    return {
+        ok: true
+    };
 }
 
 function validarCambioPisos(nuevoMaximo) {
@@ -263,4 +410,34 @@ function agregarAreaComun(area) {
     guardarTodo(db);
 
     return { ok: true, area: nuevaArea };
+}
+
+function editarReservaArea(id, datos) {
+    const db = obtenerTodo();
+
+    const reserva = (db.reservas || []).find(r => String(r.id) === String(id));
+
+    if (!reserva) {
+        return { ok: false, error: "La reserva no existe." };
+    }
+
+    const yaExiste = (db.reservas || []).some(r =>
+        String(r.id) !== String(id) &&
+        String(r.areaId) === String(datos.areaId) &&
+        String(r.fecha) === String(datos.fecha)
+    );
+
+    if (yaExiste) {
+        return {
+            ok: false,
+            error: "Esta área ya está reservada para esa fecha."
+        };
+    }
+
+    reserva.areaId = datos.areaId;
+    reserva.fecha = datos.fecha;
+
+    guardarTodo(db);
+
+    return { ok: true, reserva };
 }

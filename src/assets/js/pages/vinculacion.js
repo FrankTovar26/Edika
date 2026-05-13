@@ -30,11 +30,12 @@ function cargarUnidadesDisponibles() {
     selectUnidad.innerHTML = `<option value="">Seleccione una unidad</option>`;
 
     unidades.forEach(unidad => {
-        const texto = `${unidad.numero || "Sin número"} - Piso ${unidad.piso || "-"}`;
+        const propietario = unidad.emailPropietario ? "Propietario asignado" : "Sin propietario";
+        const inquilino = unidad.emailInquilino ? "Inquilino asignado" : "Sin inquilino";
 
         selectUnidad.innerHTML += `
             <option value="${unidad.id}">
-                ${texto}
+                ${unidad.numero || "Sin número"} - Piso ${unidad.piso || "-"} (${propietario}, ${inquilino})
             </option>
         `;
     });
@@ -48,7 +49,7 @@ function configurarFormularioInvitacion() {
     form.addEventListener("submit", event => {
         event.preventDefault();
 
-        const correo = document.getElementById("correo").value.trim();
+        const correo = document.getElementById("correo").value.trim().toLowerCase();
         const unidadId = document.getElementById("unidad").value;
         const tipoResidente = document.getElementById("tipoResidente").value;
 
@@ -68,22 +69,36 @@ function configurarFormularioInvitacion() {
             return;
         }
 
+        const correoUsado = correoYaExisteEnOtraVinculacion(db, correo, unidadId, tipoResidente);
+
+        if (correoUsado) {
+            alert("Este correo ya está vinculado o invitado en otra unidad.");
+            return;
+        }
+
+        let resultado;
+
         if (tipoResidente === "propietario") {
             if (unidad.emailPropietario) {
-                alert("Esta unidad ya tiene un propietario vinculado o invitado.");
+                alert("Esta unidad ya tiene propietario vinculado o invitado. Elimina la vinculación actual para reemplazarlo.");
                 return;
             }
 
-            vincularPropietario(unidadId, correo);
+            resultado = vincularPropietario(unidadId, correo);
         }
 
         if (tipoResidente === "inquilino") {
             if (unidad.emailInquilino) {
-                alert("Esta unidad ya tiene un inquilino vinculado o invitado.");
+                alert("Esta unidad ya tiene inquilino vinculado o invitado. Elimina la vinculación actual para reemplazarlo.");
                 return;
             }
 
-            vincularInquilino(unidadId, correo);
+            resultado = vincularInquilino(unidadId, correo);
+        }
+
+        if (resultado && resultado.ok === false) {
+            alert(resultado.error);
+            return;
         }
 
         form.reset();
@@ -94,6 +109,25 @@ function configurarFormularioInvitacion() {
     });
 }
 
+function correoYaExisteEnOtraVinculacion(db, correo, unidadId, tipoResidente) {
+    return (db.departamentos || []).some(dep => {
+        const mismoRegistro =
+            String(dep.id) === String(unidadId) &&
+            (
+                tipoResidente === "propietario"
+                    ? String(dep.emailPropietario || "").toLowerCase() === correo
+                    : String(dep.emailInquilino || "").toLowerCase() === correo
+            );
+
+        if (mismoRegistro) return false;
+
+        return (
+            String(dep.emailPropietario || "").toLowerCase() === correo ||
+            String(dep.emailInquilino || "").toLowerCase() === correo
+        );
+    });
+}
+
 function renderizarInvitaciones() {
     const db = obtenerTodo();
     const tabla = document.getElementById("tablaInvitaciones");
@@ -101,7 +135,6 @@ function renderizarInvitaciones() {
     if (!tabla) return;
 
     const departamentos = db.departamentos || [];
-
     const invitaciones = [];
 
     departamentos.forEach(dep => {
@@ -111,7 +144,8 @@ function renderizarInvitaciones() {
                 unidadNumero: dep.numero,
                 correo: dep.emailPropietario,
                 tipo: "propietario",
-                estado: dep.estadoInvitacion || "pendiente"
+                estado: dep.estadoInvitacion || "pendiente",
+                codigo: dep.codigoPropietario || "-"
             });
         }
 
@@ -121,7 +155,8 @@ function renderizarInvitaciones() {
                 unidadNumero: dep.numero,
                 correo: dep.emailInquilino,
                 tipo: "inquilino",
-                estado: dep.estadoInquilino || "pendiente"
+                estado: dep.estadoInquilino || "pendiente",
+                codigo: dep.codigoInquilino || "-"
             });
         }
     });
@@ -145,7 +180,7 @@ function renderizarInvitaciones() {
                     ${capitalizar(inv.estado)}
                 </span>
             </td>
-            <td>-</td>
+            <td>${inv.codigo}</td>
             <td>
                 <button class="btn btn-red" onclick="eliminarInvitacion('${inv.unidadId}', '${inv.tipo}')">
                     Eliminar
@@ -160,7 +195,12 @@ function eliminarInvitacion(unidadId, tipo) {
 
     if (!confirmar) return;
 
-    eliminarVinculacion(unidadId, tipo);
+    const resultado = eliminarVinculacion(unidadId, tipo);
+
+    if (resultado && resultado.ok === false) {
+        alert(resultado.error);
+        return;
+    }
 
     cargarUnidadesDisponibles();
     renderizarInvitaciones();
