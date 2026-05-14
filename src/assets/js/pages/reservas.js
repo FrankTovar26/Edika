@@ -120,7 +120,6 @@ function renderizarReservasExistentes(db) {
 
     let reservas = db.reservas || [];
     const areas = db.areasComunes || [];
-    const departamentos = db.departamentos || [];
 
     if (areaSeleccionada) {
         reservas = reservas.filter(reserva =>
@@ -131,7 +130,7 @@ function renderizarReservasExistentes(db) {
     if (reservas.length === 0) {
         tabla.innerHTML = `
             <tr>
-                <td colspan="3">No hay reservas registradas para esta área.</td>
+                <td colspan="2">No hay reservas registradas para esta área.</td>
             </tr>
         `;
         return;
@@ -139,12 +138,10 @@ function renderizarReservasExistentes(db) {
 
     tabla.innerHTML = reservas.map(reserva => {
         const area = areas.find(a => String(a.id) === String(reserva.areaId));
-        const departamento = departamentos.find(d => String(d.id) === String(reserva.departamentoId));
 
         return `
             <tr>
                 <td>${area?.nombre || "-"}</td>
-                <td>${departamento?.numero || "-"}</td>
                 <td>${reserva.fecha || "-"}</td>
             </tr>
         `;
