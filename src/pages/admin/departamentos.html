@@ -24,41 +24,139 @@
 <main>
     <h1>Gestión de Unidades</h1>
 
+    <section class="stats-grid">
+        <div class="card">
+            <span class="stat-number" id="totalUnidades">0</span>
+            <label>Total unidades</label>
+        </div>
+        <div class="card">
+            <span class="stat-number" id="unidadesDisponibles">0</span>
+            <label>Disponibles</label>
+        </div>
+        <div class="card">
+            <span class="stat-number" id="unidadesOcupadas">0</span>
+            <label>Ocupadas</label>
+        </div>
+        <div class="card">
+            <span class="stat-number" id="unidadesMantenimiento">0</span>
+            <label>Mantenimiento</label>
+        </div>
+    </section>
+
     <section class="card">
         <h2>Registrar / Editar Unidad</h2>
 
         <p style="font-size: 0.85rem; color: #666; margin-bottom: 15px;">
-            Formato requerido: <strong>Piso-Letra</strong> Ejemplo: 1-A, 2-B.
+            Formato requerido: <strong>Piso-Letra</strong>. Ejemplo: 1-A, 2-B.
         </p>
 
-        <form id="formDepartamento" class="form-group-container">
+        <form id="formDepartamento">
             <input type="hidden" id="departamentoId">
 
+            <div class="form-group-container">
+                <div class="group">
+                    <label for="numeroDepartamento">N° Unidad</label>
+                    <input 
+                        type="text" 
+                        id="numeroDepartamento" 
+                        placeholder="Ej: 1-A" 
+                        required
+                        autocomplete="off"
+                        style="text-transform: uppercase;"
+                    >
+                </div>
+
+                <div class="group">
+                    <label for="pisoDepartamento">Piso</label>
+                    <select id="pisoDepartamento" required>
+                        <option value="">Cargando pisos...</option>
+                    </select>
+                </div>
+
+                <div class="group">
+                    <label for="tipoUnidad">Tipo de unidad</label>
+                    <select id="tipoUnidad" required>
+                        <option value="departamento">Departamento</option>
+                        <option value="estacionamiento">Estacionamiento</option>
+                        <option value="deposito">Depósito</option>
+                        <option value="oficina">Oficina / Local</option>
+                    </select>
+                </div>
+
+                <div class="group">
+                    <label for="estadoUnidad">Estado</label>
+                    <select id="estadoUnidad" required>
+                        <option value="disponible">Disponible</option>
+                        <option value="ocupada">Ocupada</option>
+                        <option value="mantenimiento">En mantenimiento</option>
+                        <option value="inactiva">Inactiva</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group-container" style="margin-top: 10px;">
+                <div class="group">
+                    <label for="observacionesUnidad">Observaciones</label>
+                    <input 
+                        type="text" 
+                        id="observacionesUnidad" 
+                        placeholder="Ej: Vista interior, cerca al ascensor, mantenimiento pendiente"
+                    >
+                </div>
+
+                <div class="group" style="justify-content: flex-end;">
+                    <button type="submit" class="btn btn-green">
+                        Guardar
+                    </button>
+                </div>
+
+                <div class="group" style="justify-content: flex-end;">
+                    <button type="button" id="btnCancelarEdicion" class="btn">
+                        Cancelar edición
+                    </button>
+                </div>
+            </div>
+        </form>
+    </section>
+
+    <section class="card">
+        <h2>Filtros</h2>
+
+        <div class="form-group-container">
             <div class="group">
-                <label for="numeroDepartamento">N° Depto</label>
-                <input 
-                    type="text" 
-                    id="numeroDepartamento" 
-                    placeholder="Ej: 1-A" 
-                    required
-                    autocomplete="off"
-                    style="text-transform: uppercase;"
-                >
+                <label for="buscarUnidad">Buscar unidad</label>
+                <input type="text" id="buscarUnidad" placeholder="Ej: 1-A">
             </div>
 
             <div class="group">
-                <label for="pisoDepartamento">Piso Correspondiente</label>
-                <select id="pisoDepartamento" required>
-                    <option value="">Cargando pisos...</option>
+                <label for="filtroPisoUnidad">Piso</label>
+                <select id="filtroPisoUnidad">
+                    <option value="">Todos</option>
                 </select>
             </div>
 
-            <div class="group" style="justify-content: flex-end;">
-                <button type="submit" class="btn btn-green">
-                    Guardar
-                </button>
+            <div class="group">
+                <label for="filtroTipoUnidad">Tipo</label>
+                <select id="filtroTipoUnidad">
+                    <option value="">Todos</option>
+                    <option value="departamento">Departamento</option>
+                    <option value="estacionamiento">Estacionamiento</option>
+                    <option value="deposito">Depósito</option>
+                    <option value="oficina">Oficina / Local</option>
+                </select>
             </div>
-        </form>
+
+            <div class="group">
+                <label for="filtroEstadoUnidad">Estado</label>
+                <select id="filtroEstadoUnidad">
+                    <option value="">Todos</option>
+                    <option value="disponible">Disponible</option>
+                    <option value="ocupada">Ocupada</option>
+                    <option value="mantenimiento">En mantenimiento</option>
+                    <option value="inactiva">Inactiva</option>
+                </select>
+            </div>
+        </div>
     </section>
 
     <section class="card">
@@ -70,11 +168,13 @@
                     <tr>
                         <th>Unidad</th>
                         <th>Piso</th>
+                        <th>Tipo</th>
+                        <th>Estado</th>
+                        <th>Observaciones</th>
                         <th>Fecha registro</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
-
                 <tbody id="listaDepartamentos"></tbody>
             </table>
         </div>
