@@ -310,55 +310,112 @@ function ubicacionPermitida(tipo, piso, config) {
 }
 
 function validarFormatoUnidad(numero, tipo, piso) {
+    const unidadGenerada = validarFormatoUnidadGenerada(numero, tipo, piso);
+
+    if (unidadGenerada.ok) {
+        return { ok: true };
+    }
+
     if (tipo === "departamento") {
-        if (!/^[0-9]+-[A-Z0-9]+$/.test(numero)) {
+        if (!/^DPTO\s+[0-9]+$/i.test(numero)) {
             return {
                 ok: false,
-                error: "Formato inválido para departamento. Ejemplo: 1-A."
+                error: "Formato inválido para departamento. Ejemplo: Dpto 101."
             };
         }
 
-        const pisoCodigo = numero.split("-")[0];
+        const numeroDepartamento = numero.replace(/DPTO\s+/i, "");
+        const pisoCodigo = numeroDepartamento.charAt(0);
 
         if (String(pisoCodigo) !== String(piso)) {
             return {
                 ok: false,
-                error: "El piso del código no coincide con el piso seleccionado."
+                error: "El código del departamento debe iniciar con el piso seleccionado. Ejemplo: Piso 2 → Dpto 201."
             };
         }
-    }
-
-    if (tipo === "estacionamiento" && !/^E-[0-9]+$/.test(numero)) {
-        return {
-            ok: false,
-            error: "Formato inválido para estacionamiento. Ejemplo: E-01."
-        };
-    }
-
-    if (tipo === "deposito" && !/^D-[0-9]+$/.test(numero)) {
-        return {
-            ok: false,
-            error: "Formato inválido para depósito. Ejemplo: D-01."
-        };
     }
 
     if (tipo === "oficina") {
-        if (!/^OF-[0-9]+$/.test(numero)) {
+        if (!/^OF\s+[0-9]+$/i.test(numero)) {
             return {
                 ok: false,
-                error: "Formato inválido para oficina/local. Ejemplo: OF-101."
+                error: "Formato inválido para oficina/local. Ejemplo: Of 201."
             };
         }
 
-        const numeroOficina = numero.replace("OF-", "");
+        const numeroOficina = numero.replace(/OF\s+/i, "");
         const pisoCodigo = numeroOficina.charAt(0);
 
         if (String(pisoCodigo) !== String(piso)) {
             return {
                 ok: false,
-                error: "El código de oficina debe iniciar con el piso seleccionado. Ejemplo: Piso 2 → OF-201."
+                error: "El código de oficina debe iniciar con el piso seleccionado. Ejemplo: Piso 2 → Of 201."
             };
         }
+    }
+
+    if (tipo === "estacionamiento") {
+        if (!/^E-S[0-9]+-[0-9]+$/i.test(numero)) {
+            return {
+                ok: false,
+                error: "Formato inválido para estacionamiento. Ejemplo: E-S1-01."
+            };
+        }
+
+        const sotanoCodigo = numero.match(/^E-(S[0-9]+)-[0-9]+$/i)?.[1];
+
+        if (String(sotanoCodigo).toUpperCase() !== String(piso).toUpperCase()) {
+            return {
+                ok: false,
+                error: "El sótano del código no coincide con la ubicación seleccionada."
+            };
+        }
+    }
+
+    if (tipo === "deposito") {
+        if (!/^D-S[0-9]+-[0-9]+$/i.test(numero)) {
+            return {
+                ok: false,
+                error: "Formato inválido para depósito. Ejemplo: D-S1-01."
+            };
+        }
+
+        const sotanoCodigo = numero.match(/^D-(S[0-9]+)-[0-9]+$/i)?.[1];
+
+        if (String(sotanoCodigo).toUpperCase() !== String(piso).toUpperCase()) {
+            return {
+                ok: false,
+                error: "El sótano del código no coincide con la ubicación seleccionada."
+            };
+        }
+    }
+
+    return { ok: true };
+}
+
+function validarFormatoUnidadGenerada(numero, tipo, piso) {
+    const db = obtenerTodo();
+
+    const unidad = (db.unidadesGeneradas || []).find(item =>
+        String(item.codigo).toUpperCase() === String(numero).toUpperCase()
+    );
+
+    if (!unidad) {
+        return { ok: false };
+    }
+
+    if (normalizarTipoUnidadData(unidad.tipo) !== tipo) {
+        return {
+            ok: false,
+            error: "El tipo de unidad no coincide con la nomenclatura generada."
+        };
+    }
+
+    if (String(unidad.piso).toUpperCase() !== String(piso).toUpperCase()) {
+        return {
+            ok: false,
+            error: "La ubicación no coincide con la nomenclatura generada."
+        };
     }
 
     return { ok: true };

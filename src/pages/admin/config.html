@@ -10,6 +10,7 @@
 
 <nav class="sidebar">
     <h2>EDIFIKA</h2>
+
     <div class="sidebar-menu">
         <a href="dashboard.html">🏠 Dashboard</a>
         <a href="departamentos.html">🏢 Unidades</a>
@@ -22,6 +23,7 @@
 </nav>
 
 <main>
+
     <section class="card">
         <h1>Gestión de Edificios</h1>
 
@@ -76,13 +78,147 @@
                 </div>
             </div>
 
-            <button type="submit" class="btn btn-blue" style="margin-top: 15px;">
-                Guardar Edificio
-            </button>
+            <hr style="margin: 25px 0;">
 
-            <button type="button" id="btnCancelarEdicion" class="btn" style="margin-top: 15px;">
-                Cancelar edición
-            </button>
+            <h2>Configuración de Unidades</h2>
+
+            <p style="font-size: 0.9rem; color: #666; margin-bottom: 20px;">
+                Configura la distribución de unidades del edificio. Puedes usar el modo simple para aplicar la misma
+                cantidad en todos los pisos o el modo avanzado para personalizar cada piso y sótano.
+            </p>
+
+            <div class="form-group-container">
+                <div class="group">
+                    <label for="modoConfiguracionUnidades">Tipo de generación</label>
+                    <select id="modoConfiguracionUnidades">
+                        <option value="simple">Simple: misma cantidad por piso/sótano</option>
+                        <option value="avanzado">Avanzado: personalizar por piso/sótano</option>
+                    </select>
+                    <small style="color:#666;">
+                        Usa avanzado si el primer piso tiene locales o si cada sótano tiene distinta distribución.
+                    </small>
+                </div>
+            </div>
+
+            <section id="seccionModoSimple" class="card" style="margin-top: 20px; background: #f8fafc;">
+                <h3>Modo simple</h3>
+
+                <div class="form-group-container">
+                    <div class="group">
+                        <label for="departamentosPorPiso">Departamentos por piso</label>
+                        <input type="number" id="departamentosPorPiso" min="0" value="4" required>
+                        <small style="color:#666;">Ejemplo: 4 → 101, 102, 103, 104</small>
+                    </div>
+
+                    <div class="group">
+                        <label for="oficinasPorPiso">Oficinas/locales por piso</label>
+                        <input type="number" id="oficinasPorPiso" min="0" value="0">
+                        <small style="color:#666;">Solo si el edificio tiene oficinas/locales</small>
+                    </div>
+                </div>
+
+                <div class="form-group-container" style="margin-top: 10px;">
+                    <div class="group">
+                        <label for="estacionamientosPorSotano">Estacionamientos por sótano</label>
+                        <input type="number" id="estacionamientosPorSotano" min="0" value="10">
+                        <small style="color:#666;">Ejemplo: E-S1-01, E-S1-02...</small>
+                    </div>
+
+                    <div class="group">
+                        <label for="depositosPorSotano">Depósitos por sótano</label>
+                        <input type="number" id="depositosPorSotano" min="0" value="10">
+                        <small style="color:#666;">Ejemplo: D-S1-01, D-S1-02...</small>
+                    </div>
+                </div>
+            </section>
+
+            <section id="seccionModoAvanzado" class="card" style="margin-top: 20px; background: #fff7ed; display: none;">
+                <h3>Modo avanzado por piso y sótano</h3>
+
+                <p style="font-size: 0.9rem; color: #666; margin-bottom: 15px;">
+                    Genera una tabla editable para definir cuántos departamentos, oficinas/locales, estacionamientos
+                    y depósitos tendrá cada nivel.
+                </p>
+
+                <button type="button" id="btnConstruirConfiguracionAvanzada" class="btn btn-blue">
+                    Construir tabla avanzada
+                </button>
+
+                <div class="table-container" style="margin-top: 15px;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nivel</th>
+                                <th>Departamentos</th>
+                                <th>Oficinas/locales</th>
+                                <th>Estacionamientos</th>
+                                <th>Depósitos</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaConfiguracionAvanzada">
+                            <tr>
+                                <td colspan="5">
+                                    Presiona “Construir tabla avanzada” para personalizar la distribución.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="card" style="margin-top: 25px; background: #f8fafc;">
+                <h3>Vista previa de nomenclatura</h3>
+
+                <p style="color:#666; font-size:0.9rem; margin-bottom:15px;">
+                    Esta vista previa muestra cómo se generarán automáticamente las unidades.
+                </p>
+
+                <div id="previewNomenclatura" style="display:grid; gap:10px;">
+                    <div style="padding:12px; border:1px solid #ddd; border-radius:8px; background:white;">
+                        Configure los datos para visualizar la nomenclatura.
+                    </div>
+                </div>
+            </section>
+
+            <section class="card" style="margin-top: 20px; background: #eff6ff;">
+                <h3>Resumen de generación automática</h3>
+
+                <div style="display:flex; gap:25px; flex-wrap:wrap; margin-top:15px;">
+                    <div>
+                        <strong id="totalDepartamentosGenerados">0</strong>
+                        <span style="color:#666;">departamentos</span>
+                    </div>
+
+                    <div>
+                        <strong id="totalOficinasGeneradas">0</strong>
+                        <span style="color:#666;">oficinas/locales</span>
+                    </div>
+
+                    <div>
+                        <strong id="totalEstacionamientosGenerados">0</strong>
+                        <span style="color:#666;">estacionamientos</span>
+                    </div>
+
+                    <div>
+                        <strong id="totalDepositosGenerados">0</strong>
+                        <span style="color:#666;">depósitos</span>
+                    </div>
+                </div>
+            </section>
+
+            <div style="margin-top: 20px;">
+                <button type="button" id="btnGenerarNomenclatura" class="btn btn-green">
+                    Generar nomenclatura
+                </button>
+
+                <button type="submit" class="btn btn-blue">
+                    Guardar Edificio
+                </button>
+
+                <button type="button" id="btnCancelarEdicion" class="btn">
+                    Cancelar edición
+                </button>
+            </div>
         </form>
     </section>
 
@@ -97,6 +233,8 @@
                         <th>Dirección</th>
                         <th>Pisos</th>
                         <th>Sótanos</th>
+                        <th>Modo</th>
+                        <th>Departamentos</th>
                         <th>Oficinas</th>
                         <th>Estacionamientos</th>
                         <th>Depósitos</th>
@@ -105,7 +243,35 @@
                         <th>Acciones</th>
                     </tr>
                 </thead>
+
                 <tbody id="tablaEdificios"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>Unidades Generadas</h2>
+
+        <p style="color:#666; font-size:0.9rem; margin-bottom:15px;">
+            Aquí se visualizarán las unidades generadas automáticamente por el sistema.
+        </p>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Tipo</th>
+                        <th>Piso/Sótano</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+
+                <tbody id="tablaUnidadesGeneradas">
+                    <tr>
+                        <td colspan="4">No hay unidades generadas.</td>
+                    </tr>
+                </tbody>
             </table>
         </div>
     </section>
@@ -115,9 +281,11 @@
             Borrar toda la Base de Datos
         </button>
     </section>
+
 </main>
 
 <script src="../../assets/js/core/data.js"></script>
 <script src="../../assets/js/pages/config.js"></script>
+
 </body>
 </html>

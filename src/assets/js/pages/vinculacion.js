@@ -195,20 +195,26 @@ function vincularPropietarioSeguro(unidadId, correo) {
         };
     }
 
-    unidad.emailPropietario = correo;
-
     const usuarioExistente = buscarUsuarioPorCorreo(db, correo);
+
+    unidad.emailPropietario = correo;
 
     if (usuarioExistente) {
         unidad.estadoInvitacion = "aceptada";
         unidad.codigoPropietario = "-";
+        unidad.nombreReal = usuarioExistente.nombre || "";
+        unidad.dniPropietario = usuarioExistente.dni || "";
+        unidad.password = usuarioExistente.clave || "";
+        unidad.residente = usuarioExistente.nombre || correo;
+
         agregarUnidadAUsuario(usuarioExistente, unidad, "propietario");
+        actualizarUnidadPrincipalSiCorresponde(usuarioExistente, unidad, "propietario");
 
         guardarTodo(db);
 
         return {
             ok: true,
-            mensaje: "Propietario vinculado correctamente al usuario existente."
+            mensaje: "El correo ya tenía cuenta activa. Propietario vinculado automáticamente."
         };
     }
 
@@ -217,7 +223,10 @@ function vincularPropietarioSeguro(unidadId, correo) {
 
     guardarTodo(db);
 
-    return { ok: true };
+    return {
+        ok: true,
+        mensaje: "Invitación de propietario generada correctamente."
+    };
 }
 
 function vincularInquilinoSeguro(unidadId, correo) {
@@ -245,20 +254,26 @@ function vincularInquilinoSeguro(unidadId, correo) {
         };
     }
 
-    unidad.emailInquilino = correo;
-
     const usuarioExistente = buscarUsuarioPorCorreo(db, correo);
+
+    unidad.emailInquilino = correo;
 
     if (usuarioExistente) {
         unidad.estadoInquilino = "aceptada";
         unidad.codigoInquilino = "-";
+        unidad.nombreInquilino = usuarioExistente.nombre || "";
+        unidad.dniInquilino = usuarioExistente.dni || "";
+        unidad.passwordInquilino = usuarioExistente.clave || "";
+        unidad.residente = usuarioExistente.nombre || correo;
+
         agregarUnidadAUsuario(usuarioExistente, unidad, "inquilino");
+        actualizarUnidadPrincipalSiCorresponde(usuarioExistente, unidad, "inquilino");
 
         guardarTodo(db);
 
         return {
             ok: true,
-            mensaje: "Inquilino vinculado correctamente al usuario existente."
+            mensaje: "El correo ya tenía cuenta activa. Inquilino vinculado automáticamente."
         };
     }
 
@@ -267,7 +282,10 @@ function vincularInquilinoSeguro(unidadId, correo) {
 
     guardarTodo(db);
 
-    return { ok: true };
+    return {
+        ok: true,
+        mensaje: "Invitación de inquilino generada correctamente."
+    };
 }
 
 function vincularAutorizadoSeguro(unidadId, correo) {
@@ -301,6 +319,9 @@ function vincularAutorizadoSeguro(unidadId, correo) {
         correo,
         estado: usuarioExistente ? "aceptada" : "pendiente",
         codigo: usuarioExistente ? "-" : generarCodigoInvitacion(),
+        nombre: usuarioExistente ? usuarioExistente.nombre || "" : "",
+        dni: usuarioExistente ? usuarioExistente.dni || "" : "",
+        password: usuarioExistente ? usuarioExistente.clave || "" : "",
         fechaRegistro: new Date().toISOString()
     };
 
@@ -308,18 +329,22 @@ function vincularAutorizadoSeguro(unidadId, correo) {
 
     if (usuarioExistente) {
         agregarUnidadAUsuario(usuarioExistente, unidad, "autorizado");
+        actualizarUnidadPrincipalSiCorresponde(usuarioExistente, unidad, "autorizado");
 
         guardarTodo(db);
 
         return {
             ok: true,
-            mensaje: "Usuario existente autorizado correctamente en la unidad."
+            mensaje: "El correo ya tenía cuenta activa. Usuario autorizado vinculado automáticamente."
         };
     }
 
     guardarTodo(db);
 
-    return { ok: true };
+    return {
+        ok: true,
+        mensaje: "Invitación de usuario autorizado generada correctamente."
+    };
 }
 
 function renderizarInvitaciones() {
@@ -449,6 +474,8 @@ function eliminarInvitacion(unidadId, tipoVinculacion, autorizadoId = "", correo
             String(u.unidadId) !== String(unidadId) ||
             String(u.tipoVinculacion) !== String(tipoVinculacion)
         );
+
+        recalcularUnidadPrincipalUsuario(usuario, db);
     }
 
     guardarTodo(db);
@@ -516,13 +543,82 @@ function agregarUnidadAUsuario(usuario, unidad, tipoVinculacion) {
         tipoUnidad: normalizarTipoUnidad(unidad.tipo),
         tipoVinculacion
     });
+}
 
-    if (!usuario.unidadPrincipalId && normalizarTipoUnidad(unidad.tipo) === "departamento") {
+function actualizarUnidadPrincipalSiCorresponde(usuario, unidad, tipoVinculacion) {
+    const tipoUnidad = normalizarTipoUnidad(unidad.tipo);
+
+    if (!usuario.unidadPrincipalId) {
         usuario.unidadPrincipalId = unidad.id;
         usuario.unidadPrincipalNumero = unidad.numero;
         usuario.departamentoId = unidad.id;
         usuario.departamentoNumero = unidad.numero;
+        usuario.tipoUnidad = tipoUnidad;
+        usuario.tipoResidente = tipoVinculacion;
+        return;
     }
+
+    const principalActual = (usuario.unidadesAutorizadas || []).find(item =>
+        String(item.unidadId) === String(usuario.unidadPrincipalId)
+    );
+
+    const debePriorizarDepartamento =
+        tipoUnidad === "departamento" &&
+        (
+            !principalActual ||
+            principalActual.tipoUnidad !== "departamento" ||
+            tipoVinculacion === "propietario"
+        );
+
+    if (debePriorizarDepartamento) {
+        usuario.unidadPrincipalId = unidad.id;
+        usuario.unidadPrincipalNumero = unidad.numero;
+        usuario.departamentoId = unidad.id;
+        usuario.departamentoNumero = unidad.numero;
+        usuario.tipoUnidad = tipoUnidad;
+        usuario.tipoResidente = tipoVinculacion;
+    }
+}
+
+function recalcularUnidadPrincipalUsuario(usuario, db) {
+    const unidades = usuario.unidadesAutorizadas || [];
+
+    if (unidades.length === 0) {
+        usuario.unidadPrincipalId = null;
+        usuario.unidadPrincipalNumero = null;
+        usuario.departamentoId = null;
+        usuario.departamentoNumero = null;
+        usuario.tipoUnidad = null;
+        usuario.tipoResidente = null;
+        return;
+    }
+
+    const propietarioDepartamento = unidades.find(item =>
+        item.tipoUnidad === "departamento" &&
+        item.tipoVinculacion === "propietario"
+    );
+
+    const inquilinoDepartamento = unidades.find(item =>
+        item.tipoUnidad === "departamento" &&
+        item.tipoVinculacion === "inquilino"
+    );
+
+    const departamento = unidades.find(item =>
+        item.tipoUnidad === "departamento"
+    );
+
+    const principal =
+        propietarioDepartamento ||
+        inquilinoDepartamento ||
+        departamento ||
+        unidades[0];
+
+    usuario.unidadPrincipalId = principal.unidadId;
+    usuario.unidadPrincipalNumero = principal.unidadNumero;
+    usuario.departamentoId = principal.unidadId;
+    usuario.departamentoNumero = principal.unidadNumero;
+    usuario.tipoUnidad = principal.tipoUnidad;
+    usuario.tipoResidente = principal.tipoVinculacion;
 }
 
 function generarCodigoInvitacion() {

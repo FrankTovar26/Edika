@@ -80,26 +80,30 @@ function activarCuenta(event) {
     const db = obtenerTodo();
     db.usuarios = db.usuarios || [];
 
-    const yaExiste = db.usuarios.some(u =>
+    const usuarioExistente = db.usuarios.find(u =>
         String(u.correo).toLowerCase() === correo
     );
 
-    if (yaExiste) {
-        alert("Este correo ya tiene una cuenta activada.");
+    if (usuarioExistente) {
+        alert("Este correo ya tiene una cuenta activada. Inicia sesión con tu contraseña.");
         return;
     }
 
-    const invitacion = buscarInvitacionPorCorreo(db, correo);
+    const invitaciones = buscarInvitacionesPendientesPorCorreo(db, correo);
 
-    if (!invitacion) {
-        alert("No existe una invitación pendiente para este correo.");
+    if (invitaciones.length === 0) {
+        alert("No existen invitaciones pendientes para este correo.");
         return;
     }
 
-    if (invitacion.estado === "aceptada") {
-        alert("Esta invitación ya fue aceptada.");
-        return;
-    }
+    const unidadesAutorizadas = invitaciones.map(invitacion => ({
+        unidadId: invitacion.unidad.id,
+        unidadNumero: invitacion.unidad.numero,
+        tipoUnidad: normalizarTipoUnidadAuth(invitacion.unidad.tipo),
+        tipoVinculacion: invitacion.tipoVinculacion
+    }));
+
+    const unidadPrincipal = obtenerUnidadPrincipal(unidadesAutorizadas);
 
     const nuevoUsuario = {
         id: Date.now().toString(),
@@ -109,32 +113,27 @@ function activarCuenta(event) {
         clave,
         rol: "residente",
 
-        unidadPrincipalId: invitacion.unidad.id,
-        unidadPrincipalNumero: invitacion.unidad.numero,
+        unidadPrincipalId: unidadPrincipal.unidadId,
+        unidadPrincipalNumero: unidadPrincipal.unidadNumero,
 
-        departamentoId: invitacion.unidad.id,
-        departamentoNumero: invitacion.unidad.numero,
+        departamentoId: unidadPrincipal.unidadId,
+        departamentoNumero: unidadPrincipal.unidadNumero,
 
-        tipoUnidad: normalizarTipoUnidadAuth(invitacion.unidad.tipo),
-        tipoResidente: invitacion.tipoVinculacion,
+        tipoUnidad: unidadPrincipal.tipoUnidad,
+        tipoResidente: unidadPrincipal.tipoVinculacion,
 
-        unidadesAutorizadas: [
-            {
-                unidadId: invitacion.unidad.id,
-                unidadNumero: invitacion.unidad.numero,
-                tipoUnidad: normalizarTipoUnidadAuth(invitacion.unidad.tipo),
-                tipoVinculacion: invitacion.tipoVinculacion
-            }
-        ]
+        unidadesAutorizadas
     };
 
     db.usuarios.push(nuevoUsuario);
 
-    marcarInvitacionAceptada(invitacion, nombre, dni, clave);
+    invitaciones.forEach(invitacion => {
+        marcarInvitacionAceptada(invitacion, nombre, dni, clave);
+    });
 
     guardarTodo(db);
 
-    alert("Cuenta activada correctamente. Ahora puedes iniciar sesión.");
+    alert(`Cuenta activada correctamente. Se vincularon ${unidadesAutorizadas.length} unidad(es) a tu usuario.`);
 
     document.getElementById("registerForm").reset();
 
@@ -142,47 +141,75 @@ function activarCuenta(event) {
     document.getElementById("loginView").classList.remove("hidden");
 }
 
-function buscarInvitacionPorCorreo(db, correo) {
+function buscarInvitacionesPendientesPorCorreo(db, correo) {
     const unidades = db.departamentos || [];
+    const invitaciones = [];
 
-    for (const unidad of unidades) {
+    unidades.forEach(unidad => {
         if (
             unidad.emailPropietario &&
-            String(unidad.emailPropietario).toLowerCase() === correo
+            String(unidad.emailPropietario).toLowerCase() === correo &&
+            (unidad.estadoInvitacion || "pendiente") !== "aceptada"
         ) {
-            return {
+            invitaciones.push({
                 unidad,
                 tipoVinculacion: "propietario",
                 estado: unidad.estadoInvitacion || "pendiente"
-            };
+            });
         }
 
         if (
             unidad.emailInquilino &&
-            String(unidad.emailInquilino).toLowerCase() === correo
+            String(unidad.emailInquilino).toLowerCase() === correo &&
+            (unidad.estadoInquilino || "pendiente") !== "aceptada"
         ) {
-            return {
+            invitaciones.push({
                 unidad,
                 tipoVinculacion: "inquilino",
                 estado: unidad.estadoInquilino || "pendiente"
-            };
+            });
         }
 
-        const autorizado = (unidad.autorizados || []).find(a =>
-            String(a.correo).toLowerCase() === correo
-        );
+        (unidad.autorizados || []).forEach(autorizado => {
+            if (
+                String(autorizado.correo).toLowerCase() === correo &&
+                (autorizado.estado || "pendiente") !== "aceptada"
+            ) {
+                invitaciones.push({
+                    unidad,
+                    autorizado,
+                    tipoVinculacion: "autorizado",
+                    estado: autorizado.estado || "pendiente"
+                });
+            }
+        });
+    });
 
-        if (autorizado) {
-            return {
-                unidad,
-                autorizado,
-                tipoVinculacion: "autorizado",
-                estado: autorizado.estado || "pendiente"
-            };
-        }
-    }
+    return invitaciones;
+}
 
-    return null;
+function obtenerUnidadPrincipal(unidadesAutorizadas) {
+    const propietarioDepartamento = unidadesAutorizadas.find(unidad =>
+        unidad.tipoUnidad === "departamento" &&
+        unidad.tipoVinculacion === "propietario"
+    );
+
+    if (propietarioDepartamento) return propietarioDepartamento;
+
+    const inquilinoDepartamento = unidadesAutorizadas.find(unidad =>
+        unidad.tipoUnidad === "departamento" &&
+        unidad.tipoVinculacion === "inquilino"
+    );
+
+    if (inquilinoDepartamento) return inquilinoDepartamento;
+
+    const departamento = unidadesAutorizadas.find(unidad =>
+        unidad.tipoUnidad === "departamento"
+    );
+
+    if (departamento) return departamento;
+
+    return unidadesAutorizadas[0];
 }
 
 function marcarInvitacionAceptada(invitacion, nombre, dni, clave) {

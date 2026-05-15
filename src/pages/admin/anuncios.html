@@ -27,7 +27,12 @@
     <h1>Gestión de Anuncios</h1>
 
     <section class="card">
-        <h2>Crear / Editar anuncio</h2>
+        <h2 id="tituloFormularioAnuncio">Crear / Editar anuncio</h2>
+
+        <p style="font-size: 0.85rem; color: #666; margin-bottom: 15px;">
+            Los anuncios publicados son comunicaciones oficiales. Una vez publicados, no se puede modificar el título,
+            cuerpo ni archivo adjunto. Para corregirlos, se debe agregar una actualización o fe de erratas.
+        </p>
 
         <form id="formAnuncio">
             <input type="hidden" id="anuncioId">
@@ -39,16 +44,37 @@
                 </div>
 
                 <div class="group">
-                    <label for="fechaAnuncio">Fecha</label>
-                    <input type="date" id="fechaAnuncio" required>
+                    <label for="fechaAnuncio">Fecha de creación</label>
+                    <input type="date" id="fechaAnuncio" required readonly>
+                </div>
+            </div>
+
+            <div class="form-group-container" style="margin-top: 10px;">
+                <div class="group">
+                    <label for="fechaExpiracionAnuncio">Fecha de expiración</label>
+                    <input type="date" id="fechaExpiracionAnuncio">
+                    <small style="color: #666;">
+                        Si no se selecciona una fecha, el sistema archivará el anuncio automáticamente después de 30 días.
+                    </small>
+                </div>
+
+                <div class="group">
+                    <label for="destacadoAnuncio">Tipo de anuncio</label>
+                    <select id="destacadoAnuncio">
+                        <option value="no">Anuncio normal</option>
+                        <option value="si">Anuncio destacado / fijado</option>
+                    </select>
+                    <small style="color: #666;">
+                        Los anuncios destacados no se archivarán automáticamente.
+                    </small>
                 </div>
             </div>
 
             <div class="group" style="margin-top: 10px;">
                 <label for="descripcionAnuncio">Descripción</label>
-                <textarea 
-                    id="descripcionAnuncio" 
-                    rows="6" 
+                <textarea
+                    id="descripcionAnuncio"
+                    rows="6"
                     required
                     style="resize: vertical; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-family: inherit;"
                 ></textarea>
@@ -56,9 +82,9 @@
 
             <div class="group" style="margin-top: 10px;">
                 <label for="archivoAnuncio">Archivo adjunto PDF/imagen máx. 5 MB</label>
-                <input 
-                    type="file" 
-                    id="archivoAnuncio" 
+                <input
+                    type="file"
+                    id="archivoAnuncio"
                     accept=".pdf,image/*"
                 >
                 <small id="archivoActual" style="color: #666;"></small>
@@ -80,21 +106,118 @@
         </form>
     </section>
 
+    <section class="card" id="seccionActualizacion" style="display: none;">
+        <h2>Agregar actualización / Fe de erratas</h2>
+
+        <p style="font-size: 0.85rem; color: #666; margin-bottom: 15px;">
+            Esta actualización se agregará al final del anuncio original con fecha y hora. Los residentes serán notificados.
+        </p>
+
+        <input type="hidden" id="anuncioActualizacionId">
+
+        <div class="group">
+            <label for="textoActualizacion">Contenido de la actualización</label>
+            <textarea
+                id="textoActualizacion"
+                rows="5"
+                style="resize: vertical; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-family: inherit;"
+                placeholder="Ej: Fe de erratas: se corrige la fecha de mantenimiento..."
+            ></textarea>
+        </div>
+
+        <div style="margin-top: 15px;">
+            <button type="button" id="btnGuardarActualizacion" class="btn btn-green">
+                Guardar actualización
+            </button>
+
+            <button type="button" id="btnCancelarActualizacion" class="btn btn-red">
+                Cancelar
+            </button>
+        </div>
+    </section>
+
     <section class="card">
-        <h2>Anuncios registrados</h2>
+        <h2>Muro principal de anuncios</h2>
+
+        <p style="font-size: 0.85rem; color: #666; margin-bottom: 15px;">
+            Aquí se muestran los anuncios activos y publicados. Los anuncios archivados desaparecen del muro principal
+            y se conservan en el módulo Historial.
+        </p>
 
         <div class="table-container">
             <table>
                 <thead>
                     <tr>
                         <th>Título</th>
-                        <th>Fecha</th>
+                        <th>Fecha creación</th>
+                        <th>Fecha expiración</th>
                         <th>Estado</th>
+                        <th>Destacado</th>
                         <th>Archivo</th>
+                        <th>Actualizaciones</th>
+                        <th>Lecturas</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="tablaAnuncios"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>Historial de anuncios archivados</h2>
+
+        <p style="font-size: 0.85rem; color: #666; margin-bottom: 15px;">
+            En esta sección se conservan los anuncios archivados manual o automáticamente. El administrador puede
+            revisarlos y restaurarlos si es necesario.
+        </p>
+
+        <div class="form-group-container">
+            <div class="group">
+                <label for="buscarHistorialAnuncio">Buscar por título o descripción</label>
+                <input
+                    type="text"
+                    id="buscarHistorialAnuncio"
+                    placeholder="Ej: mantenimiento, asamblea, pago..."
+                >
+            </div>
+
+            <div class="group">
+                <label for="filtroHistorialFecha">Filtrar por fecha de creación</label>
+                <input type="date" id="filtroHistorialFecha">
+            </div>
+
+            <div class="group">
+                <label for="filtroHistorialTipoArchivo">Filtrar por archivo</label>
+                <select id="filtroHistorialTipoArchivo">
+                    <option value="">Todos</option>
+                    <option value="conArchivo">Con archivo</option>
+                    <option value="sinArchivo">Sin archivo</option>
+                </select>
+            </div>
+        </div>
+
+        <div style="margin-top: 15px;">
+            <button type="button" id="btnLimpiarFiltrosHistorial" class="btn">
+                Limpiar filtros
+            </button>
+        </div>
+
+        <div class="table-container" style="margin-top: 15px;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Título</th>
+                        <th>Fecha creación</th>
+                        <th>Fecha archivado</th>
+                        <th>Tipo archivado</th>
+                        <th>Archivo</th>
+                        <th>Actualizaciones</th>
+                        <th>Lecturas</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaHistorialAnuncios"></tbody>
             </table>
         </div>
     </section>
@@ -107,13 +230,52 @@
 
         <div id="previewContenido"></div>
 
-        <div style="margin-top: 20px;">
+        <div style="margin-top: 20px;" id="accionesPreview">
             <button id="btnConfirmarPublicacion" class="btn btn-green">
                 Confirmar publicación
             </button>
 
             <button id="btnCancelarPublicacion" class="btn btn-red">
                 Cancelar
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="modalRestaurarAnuncio" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" id="cerrarRestaurar">&times;</span>
+        <h2>Restaurar anuncio</h2>
+
+        <p id="textoConfirmarRestaurar" style="margin-top: 10px; color: #444;">
+            ¿Está seguro de restaurar este anuncio al muro principal?
+        </p>
+
+        <input type="hidden" id="anuncioRestaurarId">
+
+        <div style="margin-top: 20px;">
+            <button id="btnConfirmarRestaurar" class="btn btn-green">
+                Confirmar restauración
+            </button>
+
+            <button id="btnCancelarRestaurar" class="btn btn-red">
+                Cancelar
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="modalMetricasLectura" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" id="cerrarMetricasLectura">&times;</span>
+
+        <h2>Métricas de lectura</h2>
+
+        <div id="contenidoMetricasLectura"></div>
+
+        <div style="margin-top: 20px;">
+            <button type="button" id="btnCerrarMetricasLectura" class="btn btn-blue">
+                Cerrar
             </button>
         </div>
     </div>
