@@ -15,10 +15,65 @@ function protegerPaginaAdmin() {
         return;
     }
 
-    if (sesion.rol !== "admin") {
+    if (sesion.rol !== "admin" && sesion.rol !== "superadmin") {
         alert("No tienes permisos para acceder a esta página.");
         window.location.href = "../residente/inicio.html";
     }
+}
+
+function obtenerEdificiosPermitidosAreas() {
+    const sesion = JSON.parse(localStorage.getItem("usuarioSesion"));
+    const db = obtenerTodo();
+
+    if (!sesion) return [];
+
+    if (sesion.rol === "superadmin") {
+        return (db.edificios || []).map(e => String(e.id));
+    }
+
+    if (sesion.rol === "admin") {
+        return (sesion.edificioIds || [sesion.edificioId])
+            .filter(Boolean)
+            .map(String);
+    }
+
+    return [];
+}
+
+function obtenerAreasPermitidas(db) {
+    const permitidos = obtenerEdificiosPermitidosAreas();
+
+    if (permitidos.length === 0) {
+        return db.areasComunes || [];
+    }
+
+    return (db.areasComunes || []).filter(area =>
+        permitidos.includes(String(area.edificioId || ""))
+    );
+}
+
+function obtenerDepartamentosPermitidosAreas(db) {
+    const permitidos = obtenerEdificiosPermitidosAreas();
+
+    if (permitidos.length === 0) {
+        return db.departamentos || [];
+    }
+
+    return (db.departamentos || []).filter(dep =>
+        permitidos.includes(String(dep.edificioId || ""))
+    );
+}
+
+function obtenerEdificioActivoAreas() {
+    const activo = localStorage.getItem("edifika_edificio_activo");
+
+    if (activo && activo !== "todos") {
+        return activo;
+    }
+
+    const permitidos = obtenerEdificiosPermitidosAreas();
+
+    return permitidos[0] || null;
 }
 
 function configurarFormularioArea() {
@@ -34,7 +89,15 @@ function configurarFormularioArea() {
         const descripcion = document.getElementById("descripcionArea").value.trim();
         const estado = document.getElementById("estadoArea").value;
 
+        const edificioId = obtenerEdificioActivoAreas();
+
+        if (!edificioId) {
+            alert("No hay edificio activo seleccionado.");
+            return;
+        }
+
         const resultado = agregarAreaComun({
+            edificioId,
             nombre,
             aforo,
             descripcion,
@@ -47,6 +110,7 @@ function configurarFormularioArea() {
         }
 
         form.reset();
+
         renderizarAreas();
         cargarSelectsReserva();
 
@@ -73,16 +137,26 @@ function configurarFormularioReserva() {
         }
 
         const db = obtenerTodo();
-        const area = (db.areasComunes || []).find(a => String(a.id) === String(areaId));
+
+        const area = obtenerAreasPermitidas(db).find(a =>
+            String(a.id) === String(areaId)
+        );
 
         if (!area || normalizarEstadoArea(area.estado) !== "disponible") {
             alert("Esta área no está disponible para reservas.");
             return;
         }
 
+        const reservaData = {
+            areaId,
+            departamentoId,
+            fecha,
+            edificioId: area.edificioId
+        };
+
         const resultado = reservaId
-            ? editarReservaArea(reservaId, { areaId, departamentoId, fecha })
-            : agregarReservaArea({ areaId, departamentoId, fecha });
+            ? editarReservaArea(reservaId, reservaData)
+            : agregarReservaArea(reservaData);
 
         if (!resultado.ok) {
             alert(resultado.error);
@@ -92,7 +166,11 @@ function configurarFormularioReserva() {
         limpiarFormularioReservaAdmin();
         renderizarReservas();
 
-        alert(reservaId ? "Reserva actualizada correctamente." : "Reserva registrada correctamente.");
+        alert(
+            reservaId
+                ? "Reserva actualizada correctamente."
+                : "Reserva registrada correctamente."
+        );
     });
 }
 
@@ -103,11 +181,13 @@ function cargarSelectsReserva() {
     const selectDepartamento = document.getElementById("departamentoReserva");
 
     if (selectArea) {
-        const areasDisponibles = (db.areasComunes || []).filter(area =>
+        const areasDisponibles = obtenerAreasPermitidas(db).filter(area =>
             normalizarEstadoArea(area.estado) === "disponible"
         );
 
-        selectArea.innerHTML = `<option value="">Seleccione un área</option>`;
+        selectArea.innerHTML = `
+            <option value="">Seleccione un área</option>
+        `;
 
         areasDisponibles.forEach(area => {
             selectArea.innerHTML += `
@@ -119,9 +199,11 @@ function cargarSelectsReserva() {
     }
 
     if (selectDepartamento) {
-        const departamentos = db.departamentos || [];
+        const departamentos = obtenerDepartamentosPermitidosAreas(db);
 
-        selectDepartamento.innerHTML = `<option value="">Seleccione unidad</option>`;
+        selectDepartamento.innerHTML = `
+            <option value="">Seleccione unidad</option>
+        `;
 
         departamentos.forEach(dep => {
             selectDepartamento.innerHTML += `
@@ -139,37 +221,50 @@ function renderizarAreas() {
 
     if (!tabla) return;
 
-    const areas = db.areasComunes || [];
+    const areas = obtenerAreasPermitidas(db);
 
     if (areas.length === 0) {
         tabla.innerHTML = `
             <tr>
-                <td colspan="5">No hay áreas comunes registradas.</td>
+                <td colspan="5">
+                    No hay áreas comunes registradas para tus edificios.
+                </td>
             </tr>
         `;
         return;
     }
 
     tabla.innerHTML = areas.map(area => {
+
         const estado = normalizarEstadoArea(area.estado);
         const disponible = estado === "disponible";
 
         return `
             <tr>
                 <td><strong>${area.nombre}</strong></td>
+
                 <td>${area.aforo}</td>
+
                 <td>${area.descripcion || "-"}</td>
+
                 <td>
                     <span class="badge ${disponible ? "vacio" : "ocupado"}">
                         ${disponible ? "Disponible" : "No disponible"}
                     </span>
                 </td>
+
                 <td>
-                    <button class="btn btn-blue" onclick="cambiarEstadoArea('${area.id}')">
+                    <button 
+                        class="btn btn-blue"
+                        onclick="cambiarEstadoArea('${area.id}')"
+                    >
                         ${disponible ? "Bloquear" : "Habilitar"}
                     </button>
 
-                    <button class="btn btn-red" onclick="eliminarArea('${area.id}')">
+                    <button 
+                        class="btn btn-red"
+                        onclick="eliminarArea('${area.id}')"
+                    >
                         Eliminar
                     </button>
                 </td>
@@ -184,34 +279,55 @@ function renderizarReservas() {
 
     if (!tabla) return;
 
-    const reservas = db.reservas || [];
-    const areas = db.areasComunes || [];
-    const departamentos = db.departamentos || [];
+    const reservas = (db.reservas || []).filter(reserva =>
+        obtenerEdificiosPermitidosAreas()
+            .includes(String(reserva.edificioId || ""))
+    );
+
+    const areas = obtenerAreasPermitidas(db);
+    const departamentos = obtenerDepartamentosPermitidosAreas(db);
 
     if (reservas.length === 0) {
         tabla.innerHTML = `
             <tr>
-                <td colspan="5">No hay reservas registradas.</td>
+                <td colspan="5">
+                    No hay reservas registradas.
+                </td>
             </tr>
         `;
         return;
     }
 
     tabla.innerHTML = reservas.map(reserva => {
-        const area = areas.find(a => String(a.id) === String(reserva.areaId));
-        const departamento = departamentos.find(d => String(d.id) === String(reserva.departamentoId));
+
+        const area = areas.find(a =>
+            String(a.id) === String(reserva.areaId)
+        );
+
+        const departamento = departamentos.find(d =>
+            String(d.id) === String(reserva.departamentoId)
+        );
 
         return `
             <tr>
                 <td>${area?.nombre || "-"}</td>
+
                 <td>${departamento?.numero || "-"}</td>
+
                 <td>${reserva.fecha}</td>
+
                 <td>
-                    <button class="btn btn-blue" onclick="cargarReservaAdminParaEditar('${reserva.id}')">
+                    <button 
+                        class="btn btn-blue"
+                        onclick="cargarReservaAdminParaEditar('${reserva.id}')"
+                    >
                         Editar
                     </button>
 
-                    <button class="btn btn-red" onclick="eliminarReserva('${reserva.id}')">
+                    <button 
+                        class="btn btn-red"
+                        onclick="eliminarReserva('${reserva.id}')"
+                    >
                         Cancelar
                     </button>
                 </td>
@@ -223,7 +339,9 @@ function renderizarReservas() {
 function cambiarEstadoArea(id) {
     const db = obtenerTodo();
 
-    const area = (db.areasComunes || []).find(a => String(a.id) === String(id));
+    const area = obtenerAreasPermitidas(db).find(a =>
+        String(a.id) === String(id)
+    );
 
     if (!area) {
         alert("Área no encontrada.");
@@ -275,23 +393,12 @@ function eliminarReserva(id) {
     renderizarReservas();
 }
 
-function normalizarEstadoArea(estado) {
-    if (!estado) return "disponible";
-
-    const valor = String(estado).toLowerCase().trim();
-
-    if (valor === "disponible") return "disponible";
-    if (valor === "no disponible") return "no_disponible";
-    if (valor === "no_disponible") return "no_disponible";
-    if (valor === "mantenimiento") return "no_disponible";
-
-    return "disponible";
-}
-
 function cargarReservaAdminParaEditar(id) {
     const db = obtenerTodo();
 
-    const reserva = (db.reservas || []).find(r => String(r.id) === String(id));
+    const reserva = (db.reservas || []).find(r =>
+        String(r.id) === String(id)
+    );
 
     if (!reserva) {
         alert("Reserva no encontrada.");
@@ -315,4 +422,17 @@ function limpiarFormularioReservaAdmin() {
 
     if (form) form.reset();
     if (reservaId) reservaId.value = "";
+}
+
+function normalizarEstadoArea(estado) {
+    if (!estado) return "disponible";
+
+    const valor = String(estado).toLowerCase().trim();
+
+    if (valor === "disponible") return "disponible";
+    if (valor === "no disponible") return "no_disponible";
+    if (valor === "no_disponible") return "no_disponible";
+    if (valor === "mantenimiento") return "no_disponible";
+
+    return "disponible";
 }

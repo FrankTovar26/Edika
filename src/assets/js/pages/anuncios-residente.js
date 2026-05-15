@@ -25,6 +25,31 @@ function protegerPaginaResidente() {
     }
 }
 
+function obtenerEdificiosPermitidosResidente() {
+    const sesion = obtenerSesionActual();
+
+    if (!sesion) return [];
+
+    const ids = (sesion.unidadesAutorizadas || [])
+        .map(unidad => unidad.edificioId)
+        .filter(Boolean)
+        .map(String);
+
+    if (sesion.edificioId) {
+        ids.push(String(sesion.edificioId));
+    }
+
+    return [...new Set(ids)];
+}
+
+function anuncioPermitidoParaResidente(anuncio) {
+    const permitidos = obtenerEdificiosPermitidosResidente();
+
+    if (permitidos.length === 0) return false;
+
+    return permitidos.includes(String(anuncio.edificioId || ""));
+}
+
 function inicializarLecturasAnuncios() {
     const db = obtenerTodo();
 
@@ -89,7 +114,7 @@ function renderizarAnunciosResidente() {
     if (anunciosPaginados.length === 0) {
         contenedor.innerHTML = `
             <section class="card">
-                <p>No hay anuncios disponibles para mostrar.</p>
+                <p>No hay anuncios disponibles para tus edificios vinculados.</p>
             </section>
         `;
 
@@ -154,7 +179,10 @@ function obtenerAnunciosFiltrados() {
     const db = obtenerTodo();
     const anuncios = db.anuncios || [];
 
-    let publicados = anuncios.filter(anuncio => anuncio.estado === "publicado");
+    let publicados = anuncios.filter(anuncio =>
+        anuncio.estado === "publicado" &&
+        anuncioPermitidoParaResidente(anuncio)
+    );
 
     if (filtroActual === "noLeidos") {
         publicados = publicados.filter(anuncio => !anuncioEstaLeido(anuncio.id));
@@ -177,10 +205,15 @@ function obtenerAnunciosFiltrados() {
 
 function abrirDetalleAnuncio(id) {
     const db = obtenerTodo();
-    const anuncio = (db.anuncios || []).find(a => String(a.id) === String(id));
 
-    if (!anuncio || anuncio.estado !== "publicado") {
-        alert("El anuncio no está disponible.");
+    const anuncio = (db.anuncios || []).find(a =>
+        String(a.id) === String(id) &&
+        a.estado === "publicado" &&
+        anuncioPermitidoParaResidente(a)
+    );
+
+    if (!anuncio) {
+        alert("El anuncio no está disponible para tus edificios vinculados.");
         return;
     }
 
@@ -334,7 +367,11 @@ function descargarArchivoAdjunto(anuncioId) {
 
 function obtenerArchivoPorAnuncio(anuncioId) {
     const db = obtenerTodo();
-    const anuncio = (db.anuncios || []).find(a => String(a.id) === String(anuncioId));
+
+    const anuncio = (db.anuncios || []).find(a =>
+        String(a.id) === String(anuncioId) &&
+        anuncioPermitidoParaResidente(a)
+    );
 
     return anuncio?.archivo || null;
 }
@@ -379,6 +416,13 @@ function marcarAnuncioComoLeido(id) {
 
     if (!sesion) return;
 
+    const anuncio = (db.anuncios || []).find(a =>
+        String(a.id) === String(id) &&
+        anuncioPermitidoParaResidente(a)
+    );
+
+    if (!anuncio) return;
+
     db.lecturasAnuncios = db.lecturasAnuncios || [];
 
     const usuarioId = obtenerUsuarioIdSesion(sesion);
@@ -393,6 +437,7 @@ function marcarAnuncioComoLeido(id) {
     db.lecturasAnuncios.push({
         id: Date.now().toString() + Math.random().toString(36).substring(2, 6),
         anuncioId: String(id),
+        edificioId: anuncio.edificioId || "",
         usuarioId: String(usuarioId),
         usuarioCorreo: sesion.correo || "",
         usuarioNombre: sesion.nombre || sesion.nombres || "Residente",
@@ -443,8 +488,7 @@ function obtenerLecturaAnuncio(id) {
 }
 
 function actualizarResumenYContador() {
-    const db = obtenerTodo();
-    const anunciosPublicados = (db.anuncios || []).filter(anuncio => anuncio.estado === "publicado");
+    const anunciosPublicados = obtenerAnunciosFiltradosBase();
     const pendientes = anunciosPublicados.filter(anuncio => !anuncioEstaLeido(anuncio.id)).length;
 
     const contadorSidebar = document.getElementById("contadorAnunciosPendientes");
@@ -468,6 +512,15 @@ function actualizarResumenYContador() {
     if (totalNoLeidos) {
         totalNoLeidos.textContent = pendientes;
     }
+}
+
+function obtenerAnunciosFiltradosBase() {
+    const db = obtenerTodo();
+
+    return (db.anuncios || []).filter(anuncio =>
+        anuncio.estado === "publicado" &&
+        anuncioPermitidoParaResidente(anuncio)
+    );
 }
 
 function obtenerSesionActual() {

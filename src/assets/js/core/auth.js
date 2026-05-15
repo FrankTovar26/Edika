@@ -49,19 +49,95 @@ function iniciarSesion(event) {
         return;
     }
 
-    localStorage.setItem("usuarioSesion", JSON.stringify(usuario));
+    const usuarioSesion = prepararUsuarioSesion(usuario);
 
-    if (usuario.rol === "admin") {
+    localStorage.setItem("usuarioSesion", JSON.stringify(usuarioSesion));
+
+    if (usuarioSesion.rol === "superadmin") {
+        localStorage.setItem("edifika_edificio_activo", "todos");
         window.location.href = "src/pages/admin/dashboard.html";
         return;
     }
 
-    if (usuario.rol === "residente") {
+    if (usuarioSesion.rol === "admin") {
+        if (!usuarioSesion.edificioIds || usuarioSesion.edificioIds.length === 0) {
+            alert("Este administrador no tiene edificios asignados.");
+            return;
+        }
+
+        localStorage.setItem("edifika_edificio_activo", usuarioSesion.edificioIds[0]);
+        window.location.href = "src/pages/admin/dashboard.html";
+        return;
+    }
+
+    if (usuarioSesion.rol === "residente") {
+        const edificioPrincipal = obtenerEdificioPrincipalResidente(usuarioSesion);
+
+        if (edificioPrincipal) {
+            localStorage.setItem("edifika_edificio_activo", edificioPrincipal);
+        }
+
         window.location.href = "src/pages/residente/inicio.html";
         return;
     }
 
     alert("El usuario no tiene un rol válido.");
+}
+
+function prepararUsuarioSesion(usuario) {
+    const copia = JSON.parse(JSON.stringify(usuario));
+
+    if (copia.correo === "admin@edifika.com") {
+        copia.rol = "superadmin";
+        copia.esSuperAdmin = true;
+        copia.edificioIds = obtenerTodosLosEdificiosIds();
+        return copia;
+    }
+
+    if (copia.rol === "admin") {
+        copia.edificioIds = (copia.edificioIds || [copia.edificioId])
+            .filter(Boolean)
+            .map(String);
+
+        copia.edificioId = copia.edificioIds[0] || null;
+        return copia;
+    }
+
+    if (copia.rol === "residente") {
+        copia.unidadesAutorizadas = copia.unidadesAutorizadas || [];
+        copia.edificioIds = obtenerEdificiosDeUnidades(copia.unidadesAutorizadas);
+        copia.edificioId = copia.edificioIds[0] || null;
+        return copia;
+    }
+
+    return copia;
+}
+
+function obtenerTodosLosEdificiosIds() {
+    const db = obtenerTodo();
+
+    return (db.edificios || []).map(edificio => String(edificio.id));
+}
+
+function obtenerEdificiosDeUnidades(unidadesAutorizadas) {
+    return [...new Set(
+        (unidadesAutorizadas || [])
+            .map(unidad => unidad.edificioId)
+            .filter(Boolean)
+            .map(String)
+    )];
+}
+
+function obtenerEdificioPrincipalResidente(usuario) {
+    const principal = (usuario.unidadesAutorizadas || []).find(unidad =>
+        String(unidad.unidadId) === String(usuario.unidadPrincipalId)
+    );
+
+    if (principal?.edificioId) return principal.edificioId;
+
+    const primeraUnidad = (usuario.unidadesAutorizadas || [])[0];
+
+    return primeraUnidad?.edificioId || usuario.edificioId || null;
 }
 
 function activarCuenta(event) {
@@ -99,6 +175,7 @@ function activarCuenta(event) {
     const unidadesAutorizadas = invitaciones.map(invitacion => ({
         unidadId: invitacion.unidad.id,
         unidadNumero: invitacion.unidad.numero,
+        edificioId: invitacion.unidad.edificioId || "",
         tipoUnidad: normalizarTipoUnidadAuth(invitacion.unidad.tipo),
         tipoVinculacion: invitacion.tipoVinculacion
     }));
@@ -112,6 +189,9 @@ function activarCuenta(event) {
         correo,
         clave,
         rol: "residente",
+
+        edificioId: unidadPrincipal.edificioId || null,
+        edificioIds: obtenerEdificiosDeUnidades(unidadesAutorizadas),
 
         unidadPrincipalId: unidadPrincipal.unidadId,
         unidadPrincipalNumero: unidadPrincipal.unidadNumero,
@@ -249,10 +329,12 @@ function obtenerUsuarios() {
     const usuariosDemo = [
         {
             id: "1",
-            nombre: "Administrador",
+            nombre: "Super Administrador",
             correo: "admin@edifika.com",
             clave: "123456",
-            rol: "admin"
+            rol: "superadmin",
+            esSuperAdmin: true,
+            edificioIds: obtenerTodosLosEdificiosIds()
         }
     ];
 

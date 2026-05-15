@@ -18,6 +18,11 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function protegerPaginaAdmin() {
+    if (typeof protegerPaginaAdminData === "function") {
+        protegerPaginaAdminData();
+        return;
+    }
+
     const sesion = JSON.parse(localStorage.getItem("usuarioSesion"));
 
     if (!sesion) {
@@ -25,10 +30,59 @@ function protegerPaginaAdmin() {
         return;
     }
 
-    if (sesion.rol !== "admin") {
+    if (sesion.rol !== "admin" && sesion.rol !== "superadmin") {
         alert("No tienes permisos para acceder a esta página.");
         window.location.href = "../residente/inicio.html";
     }
+}
+
+function obtenerEdificiosPermitidosAnuncios() {
+    if (typeof obtenerEdificiosPermitidosSesion === "function") {
+        return obtenerEdificiosPermitidosSesion();
+    }
+
+    const sesion = JSON.parse(localStorage.getItem("usuarioSesion"));
+    const db = obtenerTodo();
+
+    if (!sesion) return [];
+
+    if (sesion.rol === "superadmin") {
+        return (db.edificios || []).map(e => String(e.id));
+    }
+
+    if (sesion.rol === "admin") {
+        return (sesion.edificioIds || [sesion.edificioId])
+            .filter(Boolean)
+            .map(String);
+    }
+
+    return [];
+}
+
+function obtenerEdificioActivoAnuncios() {
+    if (typeof obtenerEdificioActivoId === "function") {
+        return obtenerEdificioActivoId();
+    }
+
+    const activo = localStorage.getItem("edifika_edificio_activo");
+
+    if (activo && activo !== "todos") return activo;
+
+    const permitidos = obtenerEdificiosPermitidosAnuncios();
+
+    return permitidos[0] || null;
+}
+
+function anuncioPermitido(anuncio) {
+    const permitidos = obtenerEdificiosPermitidosAnuncios();
+
+    if (permitidos.length === 0) return true;
+
+    return permitidos.includes(String(anuncio.edificioId || ""));
+}
+
+function obtenerAnunciosPermitidos(db) {
+    return (db.anuncios || []).filter(anuncio => anuncioPermitido(anuncio));
 }
 
 function inicializarAnuncios() {
@@ -39,7 +93,10 @@ function inicializarAnuncios() {
     db.notificaciones = db.notificaciones || [];
     db.lecturasAnuncios = db.lecturasAnuncios || [];
 
+    const edificioActivo = obtenerEdificioActivoAnuncios();
+
     db.anuncios.forEach(anuncio => {
+        if (!anuncio.edificioId && edificioActivo) anuncio.edificioId = edificioActivo;
         if (!anuncio.actualizaciones) anuncio.actualizaciones = [];
         if (!anuncio.estado) anuncio.estado = "borrador";
         if (!anuncio.destacado) anuncio.destacado = "no";
@@ -187,12 +244,20 @@ async function guardarAnuncio(estado, anuncioDesdePreview = null) {
 
     const id = document.getElementById("anuncioId").value;
     const anuncio = datos.anuncio;
+    const edificioId = anuncio.edificioId || obtenerEdificioActivoAnuncios();
+
+    if (!edificioId) {
+        alert("No hay edificio activo o asignado para registrar el anuncio.");
+        return;
+    }
 
     if (id) {
-        const existente = db.anuncios.find(a => String(a.id) === String(id));
+        const existente = db.anuncios.find(a =>
+            String(a.id) === String(id) && anuncioPermitido(a)
+        );
 
         if (!existente) {
-            alert("Anuncio no encontrado.");
+            alert("Anuncio no encontrado o no pertenece a tu edificio asignado.");
             return;
         }
 
@@ -201,6 +266,7 @@ async function guardarAnuncio(estado, anuncioDesdePreview = null) {
             return;
         }
 
+        existente.edificioId = existente.edificioId || edificioId;
         existente.titulo = anuncio.titulo;
         existente.descripcion = anuncio.descripcion;
         existente.fecha = existente.fecha || obtenerFechaHoy();
@@ -220,6 +286,7 @@ async function guardarAnuncio(estado, anuncioDesdePreview = null) {
 
         const nuevoAnuncio = {
             id: Date.now().toString(),
+            edificioId,
             titulo: anuncio.titulo,
             descripcion: anuncio.descripcion,
             fecha: fechaCreacion,
@@ -251,7 +318,7 @@ async function guardarAnuncio(estado, anuncioDesdePreview = null) {
 
     alert(
         estado === "publicado"
-            ? "Anuncio publicado correctamente. Se notificó a los residentes."
+            ? "Anuncio publicado correctamente. Se notificó a los residentes del edificio."
             : "Anuncio guardado como borrador."
     );
 }
@@ -263,6 +330,14 @@ async function obtenerDatosFormulario() {
     const fechaExpiracion = document.getElementById("fechaExpiracionAnuncio")?.value || "";
     const destacado = document.getElementById("destacadoAnuncio")?.value || "no";
     const archivoInput = document.getElementById("archivoAnuncio");
+    const edificioId = obtenerEdificioActivoAnuncios();
+
+    if (!edificioId) {
+        return {
+            ok: false,
+            error: "No hay edificio activo o asignado para registrar el anuncio."
+        };
+    }
 
     if (!titulo || !descripcion) {
         return {
@@ -292,7 +367,9 @@ async function obtenerDatosFormulario() {
 
         if (id) {
             const db = obtenerTodo();
-            const existente = (db.anuncios || []).find(a => String(a.id) === String(id));
+            const existente = (db.anuncios || []).find(a =>
+                String(a.id) === String(id) && anuncioPermitido(a)
+            );
             archivo = existente?.archivo || null;
         }
     }
@@ -300,6 +377,7 @@ async function obtenerDatosFormulario() {
     return {
         ok: true,
         anuncio: {
+            edificioId,
             titulo,
             descripcion,
             fecha,
@@ -352,9 +430,10 @@ function renderizarAnuncios() {
     const db = obtenerTodo();
     const tabla = document.getElementById("tablaAnuncios");
 
-    db.anuncios = db.anuncios || [];
+    if (!tabla) return;
 
-    const anunciosVisibles = db.anuncios.filter(anuncio => anuncio.estado !== "archivado");
+    const anunciosVisibles = obtenerAnunciosPermitidos(db)
+        .filter(anuncio => anuncio.estado !== "archivado");
 
     if (anunciosVisibles.length === 0) {
         tabla.innerHTML = `
@@ -386,9 +465,7 @@ function renderizarAnuncios() {
             <td>${anuncio.archivo ? escaparHTML(anuncio.archivo.nombre) : "-"}</td>
             <td>${(anuncio.actualizaciones || []).length}</td>
             <td>${renderizarResumenLecturas(anuncio)}</td>
-            <td>
-                ${renderizarAcciones(anuncio)}
-            </td>
+            <td>${renderizarAcciones(anuncio)}</td>
         </tr>
     `).join("");
 }
@@ -399,13 +476,11 @@ function renderizarHistorialAnuncios() {
 
     if (!tabla) return;
 
-    db.anuncios = db.anuncios || [];
-
     const textoBusqueda = (document.getElementById("buscarHistorialAnuncio")?.value || "").toLowerCase().trim();
     const fechaFiltro = document.getElementById("filtroHistorialFecha")?.value || "";
     const tipoArchivoFiltro = document.getElementById("filtroHistorialTipoArchivo")?.value || "";
 
-    let archivados = db.anuncios.filter(anuncio => anuncio.estado === "archivado");
+    let archivados = obtenerAnunciosPermitidos(db).filter(anuncio => anuncio.estado === "archivado");
 
     if (textoBusqueda) {
         archivados = archivados.filter(anuncio =>
@@ -477,7 +552,8 @@ function obtenerMetricasLectura(anuncioId) {
 
     db.lecturasAnuncios = db.lecturasAnuncios || [];
 
-    const residentes = obtenerResidentes(db);
+    const anuncio = (db.anuncios || []).find(a => String(a.id) === String(anuncioId));
+    const residentes = obtenerResidentes(db, anuncio?.edificioId);
     const totalResidentes = residentes.length;
 
     const idsResidentes = residentes.map(residente => String(obtenerIdUsuario(residente)));
@@ -504,14 +580,14 @@ function obtenerMetricasLectura(anuncioId) {
 
 function abrirMetricasLectura(anuncioId) {
     const db = obtenerTodo();
-    const anuncio = (db.anuncios || []).find(a => String(a.id) === String(anuncioId));
+    const anuncio = obtenerAnunciosPermitidos(db).find(a => String(a.id) === String(anuncioId));
     const contenido = document.getElementById("contenidoMetricasLectura");
     const modal = document.getElementById("modalMetricasLectura");
 
     if (!anuncio || !contenido || !modal) return;
 
     const metricas = obtenerMetricasLectura(anuncioId);
-    const residentes = obtenerResidentes(db);
+    const residentes = obtenerResidentes(db, anuncio.edificioId);
 
     const idsLeidos = new Set(
         metricas.lecturas.map(lectura => String(lectura.usuarioId))
@@ -560,7 +636,7 @@ function abrirMetricasLectura(anuncioId) {
                     ${
                         residentes.length > 0
                             ? listaResidentes
-                            : `<tr><td colspan="4">No hay residentes registrados.</td></tr>`
+                            : `<tr><td colspan="4">No hay residentes registrados para este edificio.</td></tr>`
                     }
                 </tbody>
             </table>
@@ -602,7 +678,7 @@ function renderizarAcciones(anuncio) {
 
 function cargarAnuncioParaEditar(id) {
     const db = obtenerTodo();
-    const anuncio = (db.anuncios || []).find(a => String(a.id) === String(id));
+    const anuncio = obtenerAnunciosPermitidos(db).find(a => String(a.id) === String(id));
 
     if (!anuncio) return;
 
@@ -637,7 +713,7 @@ function cargarAnuncioParaEditar(id) {
 
 function prepararPublicacionDesdeTabla(id) {
     const db = obtenerTodo();
-    const anuncio = (db.anuncios || []).find(a => String(a.id) === String(id));
+    const anuncio = obtenerAnunciosPermitidos(db).find(a => String(a.id) === String(id));
 
     if (!anuncio) return;
 
@@ -648,6 +724,7 @@ function prepararPublicacionDesdeTabla(id) {
 
     anuncioPendientePublicacion = {
         idExistente: anuncio.id,
+        edificioId: anuncio.edificioId,
         titulo: anuncio.titulo,
         descripcion: anuncio.descripcion,
         fecha: anuncio.fecha,
@@ -664,7 +741,7 @@ function prepararPublicacionDesdeTabla(id) {
 
 function verAnuncioPublicado(id) {
     const db = obtenerTodo();
-    const anuncio = (db.anuncios || []).find(a => String(a.id) === String(id));
+    const anuncio = obtenerAnunciosPermitidos(db).find(a => String(a.id) === String(id));
 
     if (!anuncio) return;
 
@@ -791,7 +868,7 @@ function descargarArchivoTemporalAdmin() {
 
 function obtenerArchivoPorAnuncioAdmin(anuncioId) {
     const db = obtenerTodo();
-    const anuncio = (db.anuncios || []).find(a => String(a.id) === String(anuncioId));
+    const anuncio = obtenerAnunciosPermitidos(db).find(a => String(a.id) === String(anuncioId));
 
     return anuncio?.archivo || null;
 }
@@ -888,7 +965,7 @@ function cerrarPreview() {
 
 function abrirActualizacion(id) {
     const db = obtenerTodo();
-    const anuncio = (db.anuncios || []).find(a => String(a.id) === String(id));
+    const anuncio = obtenerAnunciosPermitidos(db).find(a => String(a.id) === String(id));
 
     if (!anuncio) return;
 
@@ -917,10 +994,10 @@ function guardarActualizacion() {
     }
 
     const db = obtenerTodo();
-    const anuncio = (db.anuncios || []).find(a => String(a.id) === String(id));
+    const anuncio = obtenerAnunciosPermitidos(db).find(a => String(a.id) === String(id));
 
     if (!anuncio) {
-        alert("Anuncio no encontrado.");
+        alert("Anuncio no encontrado o no pertenece a tu edificio asignado.");
         return;
     }
 
@@ -950,7 +1027,7 @@ function guardarActualizacion() {
     renderizarAnuncios();
     renderizarHistorialAnuncios();
 
-    alert("Actualización agregada correctamente. Se notificó a los residentes.");
+    alert("Actualización agregada correctamente. Se notificó a los residentes del edificio.");
 }
 
 function limpiarActualizacion() {
@@ -965,7 +1042,7 @@ function archivarAnuncio(id) {
     if (!confirmar) return;
 
     const db = obtenerTodo();
-    const anuncio = (db.anuncios || []).find(a => String(a.id) === String(id));
+    const anuncio = obtenerAnunciosPermitidos(db).find(a => String(a.id) === String(id));
 
     if (!anuncio) return;
 
@@ -997,7 +1074,7 @@ function archivarAnunciosVencidos() {
     let huboCambios = false;
     const hoy = obtenerFechaHoy();
 
-    db.anuncios.forEach(anuncio => {
+    obtenerAnunciosPermitidos(db).forEach(anuncio => {
         if (anuncio.estado !== "publicado") return;
         if (anuncio.destacado === "si") return;
 
@@ -1031,15 +1108,20 @@ function registrarAvisoExpiracionAdmin(db, anuncio, fechaLimite) {
 
     if (yaExiste) return;
 
-    db.notificaciones.push({
-        id: Date.now().toString() + Math.random().toString(36).substring(2, 6),
-        usuarioId: "admin",
-        correo: "admin@edifika.com",
-        tipo: "anuncio_por_archivar",
-        mensaje: `El anuncio "${anuncio.titulo}" será archivado automáticamente en 3 días.`,
-        anuncioId: anuncio.id,
-        leido: false,
-        fecha: new Date().toISOString()
+    const admins = obtenerAdminsDelEdificio(db, anuncio.edificioId);
+
+    admins.forEach(admin => {
+        db.notificaciones.push({
+            id: Date.now().toString() + Math.random().toString(36).substring(2, 6),
+            usuarioId: obtenerIdUsuario(admin),
+            correo: admin.correo,
+            edificioId: anuncio.edificioId,
+            tipo: "anuncio_por_archivar",
+            mensaje: `El anuncio "${anuncio.titulo}" será archivado automáticamente en 3 días.`,
+            anuncioId: anuncio.id,
+            leido: false,
+            fecha: new Date().toISOString()
+        });
     });
 
     guardarTodo(db);
@@ -1047,7 +1129,7 @@ function registrarAvisoExpiracionAdmin(db, anuncio, fechaLimite) {
 
 function abrirModalRestaurar(id) {
     const db = obtenerTodo();
-    const anuncio = (db.anuncios || []).find(a => String(a.id) === String(id));
+    const anuncio = obtenerAnunciosPermitidos(db).find(a => String(a.id) === String(id));
 
     if (!anuncio) return;
 
@@ -1077,7 +1159,7 @@ function cerrarModalRestaurar() {
 
 function restaurarAnuncioConfirmado(id) {
     const db = obtenerTodo();
-    const anuncio = (db.anuncios || []).find(a => String(a.id) === String(id));
+    const anuncio = obtenerAnunciosPermitidos(db).find(a => String(a.id) === String(id));
 
     if (!anuncio) {
         alert("Anuncio no encontrado.");
@@ -1110,7 +1192,7 @@ function restaurarAnuncioConfirmado(id) {
 
 function eliminarAnuncio(id) {
     const db = obtenerTodo();
-    const anuncio = (db.anuncios || []).find(a => String(a.id) === String(id));
+    const anuncio = obtenerAnunciosPermitidos(db).find(a => String(a.id) === String(id));
 
     if (!anuncio) return;
 
@@ -1133,7 +1215,7 @@ function eliminarAnuncio(id) {
 }
 
 function notificarPublicacion(db, anuncio) {
-    const residentes = obtenerResidentes(db);
+    const residentes = obtenerResidentes(db, anuncio.edificioId);
 
     db.correosEnviados = db.correosEnviados || [];
     db.notificaciones = db.notificaciones || [];
@@ -1141,6 +1223,7 @@ function notificarPublicacion(db, anuncio) {
     residentes.forEach(residente => {
         db.correosEnviados.push({
             id: Date.now().toString() + Math.random().toString(36).substring(2, 6),
+            edificioId: anuncio.edificioId,
             tipo: "publicacion_anuncio",
             para: residente.correo,
             asunto: `Nuevo anuncio: ${anuncio.titulo}`,
@@ -1153,6 +1236,7 @@ function notificarPublicacion(db, anuncio) {
             id: Date.now().toString() + Math.random().toString(36).substring(2, 6),
             usuarioId: obtenerIdUsuario(residente),
             correo: residente.correo,
+            edificioId: anuncio.edificioId,
             tipo: "anuncio_publicado",
             mensaje: `Nuevo anuncio publicado: ${anuncio.titulo}`,
             anuncioId: anuncio.id,
@@ -1163,7 +1247,7 @@ function notificarPublicacion(db, anuncio) {
 }
 
 function notificarActualizacion(db, anuncio, actualizacion) {
-    const residentes = obtenerResidentes(db);
+    const residentes = obtenerResidentes(db, anuncio.edificioId);
 
     db.correosEnviados = db.correosEnviados || [];
     db.notificaciones = db.notificaciones || [];
@@ -1171,6 +1255,7 @@ function notificarActualizacion(db, anuncio, actualizacion) {
     residentes.forEach(residente => {
         db.correosEnviados.push({
             id: Date.now().toString() + Math.random().toString(36).substring(2, 6),
+            edificioId: anuncio.edificioId,
             tipo: "actualizacion_anuncio",
             para: residente.correo,
             asunto: `Actualización de anuncio: ${anuncio.titulo}`,
@@ -1183,6 +1268,7 @@ function notificarActualizacion(db, anuncio, actualizacion) {
             id: Date.now().toString() + Math.random().toString(36).substring(2, 6),
             usuarioId: obtenerIdUsuario(residente),
             correo: residente.correo,
+            edificioId: anuncio.edificioId,
             tipo: "anuncio_actualizado",
             mensaje: `El anuncio "${anuncio.titulo}" tiene una actualización.`,
             anuncioId: anuncio.id,
@@ -1192,10 +1278,29 @@ function notificarActualizacion(db, anuncio, actualizacion) {
     });
 }
 
-function obtenerResidentes(db) {
-    return (db.usuarios || []).filter(usuario =>
-        usuario.rol === "residente" && usuario.correo
-    );
+function obtenerResidentes(db, edificioId = null) {
+    return (db.usuarios || []).filter(usuario => {
+        if (usuario.rol !== "residente" || !usuario.correo) return false;
+
+        if (!edificioId) return true;
+
+        return (usuario.unidadesAutorizadas || []).some(unidad =>
+            String(unidad.edificioId || "") === String(edificioId)
+        );
+    });
+}
+
+function obtenerAdminsDelEdificio(db, edificioId) {
+    return (db.usuarios || []).filter(usuario => {
+        if (usuario.rol === "superadmin") return true;
+
+        if (usuario.rol !== "admin") return false;
+
+        return (usuario.edificioIds || [usuario.edificioId])
+            .filter(Boolean)
+            .map(String)
+            .includes(String(edificioId));
+    });
 }
 
 function obtenerIdUsuario(usuario) {

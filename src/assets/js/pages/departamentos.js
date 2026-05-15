@@ -10,6 +10,11 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function protegerPaginaAdmin() {
+    if (typeof protegerPaginaAdminData === "function") {
+        protegerPaginaAdminData();
+        return;
+    }
+
     const sesion = JSON.parse(localStorage.getItem("usuarioSesion"));
 
     if (!sesion) {
@@ -17,7 +22,7 @@ function protegerPaginaAdmin() {
         return;
     }
 
-    if (sesion.rol !== "admin") {
+    if (sesion.rol !== "admin" && sesion.rol !== "superadmin") {
         alert("No tienes permisos para acceder a esta página.");
         window.location.href = "../residente/inicio.html";
     }
@@ -29,14 +34,10 @@ function cargarConfiguracionUnidades() {
     db.unidadesGeneradas = db.unidadesGeneradas || [];
     db.departamentos = db.departamentos || [];
 
-    if (!db.configEdificio || !db.configEdificio.pisos) {
-        alert("Primero debes configurar el edificio.");
-        window.location.href = "config.html";
-        return;
-    }
+    const unidadesPermitidas = obtenerUnidadesGeneradasPermitidas(db);
 
-    if (db.unidadesGeneradas.length === 0) {
-        alert("Primero debes generar la nomenclatura de unidades en Configuración.");
+    if (unidadesPermitidas.length === 0) {
+        alert("Primero debes generar la nomenclatura de unidades para el edificio asignado.");
         window.location.href = "config.html";
         return;
     }
@@ -51,27 +52,89 @@ function cargarConfiguracionUnidades() {
     actualizarAyudaFormato();
 }
 
+function obtenerEdificiosPermitidosLocal() {
+    if (typeof obtenerEdificiosPermitidosSesion === "function") {
+        return obtenerEdificiosPermitidosSesion();
+    }
+
+    const sesion = JSON.parse(localStorage.getItem("usuarioSesion"));
+    const db = obtenerTodo();
+
+    if (!sesion || sesion.rol === "superadmin") {
+        return (db.edificios || []).map(edificio => String(edificio.id));
+    }
+
+    if (sesion.rol === "admin") {
+        return (sesion.edificioIds || [sesion.edificioId]).filter(Boolean).map(String);
+    }
+
+    return [];
+}
+
+function obtenerEdificioActivoLocal() {
+    if (typeof obtenerEdificioActivoId === "function") {
+        return obtenerEdificioActivoId();
+    }
+
+    const activo = localStorage.getItem("edifika_edificio_activo");
+
+    if (activo && activo !== "todos") return activo;
+
+    const permitidos = obtenerEdificiosPermitidosLocal();
+
+    return permitidos[0] || null;
+}
+
+function obtenerUnidadesGeneradasPermitidas(db) {
+    const permitidos = obtenerEdificiosPermitidosLocal();
+
+    if (permitidos.length === 0) {
+        return db.unidadesGeneradas || [];
+    }
+
+    return (db.unidadesGeneradas || []).filter(unidad =>
+        permitidos.includes(String(unidad.edificioId || ""))
+    );
+}
+
+function obtenerDepartamentosPermitidos(db) {
+    const permitidos = obtenerEdificiosPermitidosLocal();
+
+    if (permitidos.length === 0) {
+        return db.departamentos || [];
+    }
+
+    return (db.departamentos || []).filter(dep =>
+        permitidos.includes(String(dep.edificioId || ""))
+    );
+}
+
 function sincronizarUnidadesGeneradasConDepartamentos() {
     const db = obtenerTodo();
 
     db.unidadesGeneradas = db.unidadesGeneradas || [];
     db.departamentos = db.departamentos || [];
 
-    db.unidadesGeneradas.forEach(unidad => {
+    const unidadesPermitidas = obtenerUnidadesGeneradasPermitidas(db);
+
+    unidadesPermitidas.forEach(unidad => {
         const yaExiste = db.departamentos.some(dep =>
-            String(dep.numero) === String(unidad.codigo)
+            String(dep.numero) === String(unidad.codigo) &&
+            String(dep.edificioId || "") === String(unidad.edificioId || "")
         );
 
         if (!yaExiste) {
             db.departamentos.push({
                 id: Date.now().toString() + Math.random().toString(36).substring(2, 8),
+                edificioId: unidad.edificioId,
                 numero: unidad.codigo,
                 piso: unidad.piso,
                 tipo: unidad.tipo,
                 estado: unidad.estado || "disponible",
                 observaciones: "",
                 fechaRegistro: new Date().toISOString(),
-                origen: "configuracion"
+                origen: "configuracion",
+                autorizados: []
             });
         }
     });
@@ -81,7 +144,7 @@ function sincronizarUnidadesGeneradasConDepartamentos() {
 
 function cargarTiposPermitidos() {
     const db = obtenerTodo();
-    const unidades = db.unidadesGeneradas || [];
+    const unidades = obtenerUnidadesGeneradasPermitidas(db);
 
     const selectTipo = document.getElementById("tipoUnidad");
     const tiposUnicos = [...new Set(unidades.map(u => normalizarTipoUnidad(u.tipo)))];
@@ -110,7 +173,7 @@ function cargarTiposPermitidos() {
 
 function cargarFiltroTipos() {
     const db = obtenerTodo();
-    const unidades = db.unidadesGeneradas || [];
+    const unidades = obtenerUnidadesGeneradasPermitidas(db);
     const filtroTipo = document.getElementById("filtroTipoUnidad");
 
     if (!filtroTipo) return;
@@ -179,6 +242,7 @@ function configurarCambioUnidadGenerada() {
         document.getElementById("tipoUnidad").value = normalizarTipoUnidad(unidad.tipo);
 
         const estadoUnidad = document.getElementById("estadoUnidad");
+
         if (estadoUnidad) {
             estadoUnidad.value = normalizarEstadoUnidad(unidad.estado || "disponible");
         }
@@ -187,7 +251,7 @@ function configurarCambioUnidadGenerada() {
 
 function cargarPisosPorTipo() {
     const db = obtenerTodo();
-    const unidades = db.unidadesGeneradas || [];
+    const unidades = obtenerUnidadesGeneradasPermitidas(db);
 
     const selectPiso = document.getElementById("pisoDepartamento");
     const tipo = document.getElementById("tipoUnidad")?.value || "";
@@ -217,7 +281,7 @@ function cargarPisosPorTipo() {
 
 function cargarFiltroPisos() {
     const db = obtenerTodo();
-    const unidades = db.unidadesGeneradas || [];
+    const unidades = obtenerUnidadesGeneradasPermitidas(db);
     const filtroPiso = document.getElementById("filtroPisoUnidad");
 
     if (!filtroPiso) return;
@@ -237,8 +301,8 @@ function cargarFiltroPisos() {
 
 function cargarUnidadesGeneradasSelect() {
     const db = obtenerTodo();
-    const unidades = db.unidadesGeneradas || [];
-    const departamentos = db.departamentos || [];
+    const unidades = obtenerUnidadesGeneradasPermitidas(db);
+    const departamentos = obtenerDepartamentosPermitidos(db);
 
     const selectUnidad = document.getElementById("unidadGeneradaSelect");
     const tipo = document.getElementById("tipoUnidad")?.value || "";
@@ -274,7 +338,8 @@ function cargarUnidadesGeneradasSelect() {
 
     unidadesFiltradas.forEach(unidad => {
         const depRelacionado = departamentos.find(dep =>
-            String(dep.numero) === String(unidad.codigo)
+            String(dep.numero) === String(unidad.codigo) &&
+            String(dep.edificioId || "") === String(unidad.edificioId || "")
         );
 
         const estaRegistrada = !!depRelacionado;
@@ -312,10 +377,16 @@ function obtenerUbicacionesDesdeUnidades(unidades) {
 
 function obtenerUnidadGeneradaPorCodigo(codigo) {
     const db = obtenerTodo();
+    const permitidos = obtenerEdificiosPermitidosLocal();
 
-    return (db.unidadesGeneradas || []).find(unidad =>
-        String(unidad.codigo) === String(codigo)
-    ) || null;
+    return (db.unidadesGeneradas || []).find(unidad => {
+        const mismoCodigo = String(unidad.codigo) === String(codigo);
+        const edificioPermitido =
+            permitidos.length === 0 ||
+            permitidos.includes(String(unidad.edificioId || ""));
+
+        return mismoCodigo && edificioPermitido;
+    }) || null;
 }
 
 function configurarFormularioDepartamento() {
@@ -338,6 +409,7 @@ function configurarFormularioDepartamento() {
         }
 
         const datos = {
+            edificioId: unidadGenerada.edificioId,
             numero: unidadGenerada.codigo,
             piso: unidadGenerada.piso,
             tipo: normalizarTipoUnidad(unidadGenerada.tipo),
@@ -355,7 +427,7 @@ function configurarFormularioDepartamento() {
             return;
         }
 
-        actualizarEstadoUnidadGenerada(datos.numero, datos.estado);
+        actualizarEstadoUnidadGenerada(datos.numero, datos.estado, datos.edificioId);
 
         limpiarFormularioDepartamento();
         cargarPisosPorTipo();
@@ -398,7 +470,7 @@ function renderizarDepartamentos() {
 
     if (!tbody) return;
 
-    let departamentos = [...(db.departamentos || [])];
+    let departamentos = obtenerDepartamentosPermitidos(db);
 
     const busqueda = document.getElementById("buscarUnidad")?.value.trim().toUpperCase() || "";
     const piso = document.getElementById("filtroPisoUnidad")?.value || "";
@@ -481,7 +553,7 @@ function renderizarDepartamentos() {
 
 function actualizarEstadisticas() {
     const db = obtenerTodo();
-    const departamentos = db.departamentos || [];
+    const departamentos = obtenerDepartamentosPermitidos(db);
 
     const disponibles = departamentos.filter(d =>
         obtenerEstadoRealUnidad(d) === "disponible"
@@ -509,12 +581,12 @@ function actualizarEstadisticas() {
 function cargarDepartamentoParaEditar(id) {
     const db = obtenerTodo();
 
-    const departamento = (db.departamentos || []).find(dep =>
+    const departamento = obtenerDepartamentosPermitidos(db).find(dep =>
         String(dep.id) === String(id)
     );
 
     if (!departamento) {
-        alert("Unidad no encontrada.");
+        alert("Unidad no encontrada o no pertenece a tu edificio asignado.");
         return;
     }
 
@@ -552,9 +624,14 @@ function eliminarUnidad(id) {
     if (!confirmar) return;
 
     const db = obtenerTodo();
-    const departamento = (db.departamentos || []).find(dep =>
+    const departamento = obtenerDepartamentosPermitidos(db).find(dep =>
         String(dep.id) === String(id)
     );
+
+    if (!departamento) {
+        alert("Unidad no encontrada o no pertenece a tu edificio asignado.");
+        return;
+    }
 
     const resultado = eliminarDepartamento(id);
 
@@ -563,9 +640,7 @@ function eliminarUnidad(id) {
         return;
     }
 
-    if (departamento) {
-        actualizarEstadoUnidadGenerada(departamento.numero, "disponible");
-    }
+    actualizarEstadoUnidadGenerada(departamento.numero, "disponible", departamento.edificioId);
 
     cargarUnidadesGeneradasSelect();
     renderizarDepartamentos();
@@ -597,16 +672,26 @@ function actualizarAyudaFormato() {
 
     if (!ayuda) return;
 
-    ayuda.textContent = "Selecciona una unidad generada desde Configuración. El código se completará automáticamente y no podrá editarse manualmente.";
+    const db = obtenerTodo();
+    const permitidos = obtenerEdificiosPermitidosLocal();
+    const edificios = (db.edificios || [])
+        .filter(edificio => permitidos.length === 0 || permitidos.includes(String(edificio.id)))
+        .map(edificio => edificio.nombre)
+        .join(", ");
+
+    ayuda.textContent = edificios
+        ? `Selecciona una unidad generada desde Configuración. Edificio(s) disponible(s): ${edificios}.`
+        : "Selecciona una unidad generada desde Configuración. El código se completará automáticamente.";
 }
 
-function actualizarEstadoUnidadGenerada(codigo, estado) {
+function actualizarEstadoUnidadGenerada(codigo, estado, edificioId) {
     const db = obtenerTodo();
 
     db.unidadesGeneradas = db.unidadesGeneradas || [];
 
     const unidad = db.unidadesGeneradas.find(u =>
-        String(u.codigo) === String(codigo)
+        String(u.codigo) === String(codigo) &&
+        String(u.edificioId || "") === String(edificioId || "")
     );
 
     if (unidad) {

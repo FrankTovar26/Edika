@@ -6,6 +6,11 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function protegerPaginaAdmin() {
+    if (typeof protegerPaginaAdminData === "function") {
+        protegerPaginaAdminData();
+        return;
+    }
+
     const sesion = JSON.parse(localStorage.getItem("usuarioSesion"));
 
     if (!sesion) {
@@ -13,10 +18,45 @@ function protegerPaginaAdmin() {
         return;
     }
 
-    if (sesion.rol !== "admin") {
+    if (sesion.rol !== "admin" && sesion.rol !== "superadmin") {
         alert("No tienes permisos para acceder a esta página.");
         window.location.href = "../residente/inicio.html";
     }
+}
+
+function obtenerEdificiosPermitidos() {
+    if (typeof obtenerEdificiosPermitidosSesion === "function") {
+        return obtenerEdificiosPermitidosSesion();
+    }
+
+    const sesion = JSON.parse(localStorage.getItem("usuarioSesion"));
+    const db = obtenerTodo();
+
+    if (!sesion) return [];
+
+    if (sesion.rol === "superadmin") {
+        return (db.edificios || []).map(e => String(e.id));
+    }
+
+    if (sesion.rol === "admin") {
+        return (sesion.edificioIds || [sesion.edificioId])
+            .filter(Boolean)
+            .map(String);
+    }
+
+    return [];
+}
+
+function obtenerDepartamentosPermitidos(db) {
+    const permitidos = obtenerEdificiosPermitidos();
+
+    if (permitidos.length === 0) {
+        return db.departamentos || [];
+    }
+
+    return (db.departamentos || []).filter(dep =>
+        permitidos.includes(String(dep.edificioId || ""))
+    );
 }
 
 function configurarEventos() {
@@ -39,12 +79,13 @@ function configurarEventos() {
 
 function cargarUnidadesDisponibles() {
     const db = obtenerTodo();
+
     const selectUnidad = document.getElementById("unidad");
     const filtroTipo = document.getElementById("tipoUnidadFiltro")?.value || "";
 
     if (!selectUnidad) return;
 
-    let unidades = db.departamentos || [];
+    let unidades = obtenerDepartamentosPermitidos(db);
 
     if (filtroTipo) {
         unidades = unidades.filter(unidad =>
@@ -57,7 +98,13 @@ function cargarUnidadesDisponibles() {
         return estado !== "mantenimiento" && estado !== "inactiva";
     });
 
-    selectUnidad.innerHTML = `<option value="">Seleccione una unidad</option>`;
+    unidades.sort((a, b) =>
+        String(a.numero).localeCompare(String(b.numero))
+    );
+
+    selectUnidad.innerHTML = `
+        <option value="">Seleccione una unidad</option>
+    `;
 
     unidades.forEach(unidad => {
         selectUnidad.innerHTML += `
@@ -72,12 +119,13 @@ function cargarUnidadesDisponibles() {
 
 function ajustarTiposDeVinculacion() {
     const db = obtenerTodo();
+
     const unidadId = document.getElementById("unidad")?.value;
     const selectTipo = document.getElementById("tipoResidente");
 
     if (!selectTipo) return;
 
-    const unidad = (db.departamentos || []).find(u =>
+    const unidad = obtenerDepartamentosPermitidos(db).find(u =>
         String(u.id) === String(unidadId)
     );
 
@@ -122,12 +170,12 @@ function generarInvitacion(event) {
 
     const db = obtenerTodo();
 
-    const unidad = (db.departamentos || []).find(u =>
+    const unidad = obtenerDepartamentosPermitidos(db).find(u =>
         String(u.id) === String(unidadId)
     );
 
     if (!unidad) {
-        alert("La unidad seleccionada no existe.");
+        alert("La unidad seleccionada no existe o no pertenece a tu edificio asignado.");
         return;
     }
 
@@ -173,12 +221,15 @@ function generarInvitacion(event) {
 function vincularPropietarioSeguro(unidadId, correo) {
     const db = obtenerTodo();
 
-    const unidad = db.departamentos.find(u =>
+    const unidad = obtenerDepartamentosPermitidos(db).find(u =>
         String(u.id) === String(unidadId)
     );
 
     if (!unidad) {
-        return { ok: false, error: "Unidad no encontrada." };
+        return {
+            ok: false,
+            error: "Unidad no encontrada o no pertenece a tu edificio asignado."
+        };
     }
 
     if (normalizarTipoUnidad(unidad.tipo) !== "departamento") {
@@ -232,12 +283,15 @@ function vincularPropietarioSeguro(unidadId, correo) {
 function vincularInquilinoSeguro(unidadId, correo) {
     const db = obtenerTodo();
 
-    const unidad = db.departamentos.find(u =>
+    const unidad = obtenerDepartamentosPermitidos(db).find(u =>
         String(u.id) === String(unidadId)
     );
 
     if (!unidad) {
-        return { ok: false, error: "Unidad no encontrada." };
+        return {
+            ok: false,
+            error: "Unidad no encontrada o no pertenece a tu edificio asignado."
+        };
     }
 
     if (normalizarTipoUnidad(unidad.tipo) !== "departamento") {
@@ -291,12 +345,15 @@ function vincularInquilinoSeguro(unidadId, correo) {
 function vincularAutorizadoSeguro(unidadId, correo) {
     const db = obtenerTodo();
 
-    const unidad = db.departamentos.find(u =>
+    const unidad = obtenerDepartamentosPermitidos(db).find(u =>
         String(u.id) === String(unidadId)
     );
 
     if (!unidad) {
-        return { ok: false, error: "Unidad no encontrada." };
+        return {
+            ok: false,
+            error: "Unidad no encontrada o no pertenece a tu edificio asignado."
+        };
     }
 
     unidad.autorizados = unidad.autorizados || [];
@@ -354,11 +411,13 @@ function renderizarInvitaciones() {
     if (!tabla) return;
 
     const invitaciones = [];
+    const departamentos = obtenerDepartamentosPermitidos(db);
 
-    (db.departamentos || []).forEach(unidad => {
+    departamentos.forEach(unidad => {
         if (unidad.emailPropietario) {
             invitaciones.push({
                 unidadId: unidad.id,
+                edificioId: unidad.edificioId,
                 unidadNumero: unidad.numero,
                 tipoUnidad: unidad.tipo,
                 correo: unidad.emailPropietario,
@@ -371,6 +430,7 @@ function renderizarInvitaciones() {
         if (unidad.emailInquilino) {
             invitaciones.push({
                 unidadId: unidad.id,
+                edificioId: unidad.edificioId,
                 unidadNumero: unidad.numero,
                 tipoUnidad: unidad.tipo,
                 correo: unidad.emailInquilino,
@@ -383,6 +443,7 @@ function renderizarInvitaciones() {
         (unidad.autorizados || []).forEach(autorizado => {
             invitaciones.push({
                 unidadId: unidad.id,
+                edificioId: unidad.edificioId,
                 autorizadoId: autorizado.id,
                 unidadNumero: unidad.numero,
                 tipoUnidad: unidad.tipo,
@@ -434,12 +495,12 @@ function eliminarInvitacion(unidadId, tipoVinculacion, autorizadoId = "", correo
 
     const db = obtenerTodo();
 
-    const unidad = (db.departamentos || []).find(u =>
+    const unidad = obtenerDepartamentosPermitidos(db).find(u =>
         String(u.id) === String(unidadId)
     );
 
     if (!unidad) {
-        alert("Unidad no encontrada.");
+        alert("Unidad no encontrada o no pertenece a tu edificio asignado.");
         return;
     }
 
@@ -487,7 +548,7 @@ function eliminarInvitacion(unidadId, tipoVinculacion, autorizadoId = "", correo
 }
 
 function correoYaExisteEnUnidad(db, correo, unidadId, tipoVinculacion) {
-    const unidad = (db.departamentos || []).find(u =>
+    const unidad = obtenerDepartamentosPermitidos(db).find(u =>
         String(u.id) === String(unidadId)
     );
 
@@ -539,10 +600,21 @@ function agregarUnidadAUsuario(usuario, unidad, tipoVinculacion) {
 
     usuario.unidadesAutorizadas.push({
         unidadId: unidad.id,
+        edificioId: unidad.edificioId,
         unidadNumero: unidad.numero,
         tipoUnidad: normalizarTipoUnidad(unidad.tipo),
         tipoVinculacion
     });
+
+    usuario.edificioIds = usuario.edificioIds || [];
+
+    if (unidad.edificioId && !usuario.edificioIds.map(String).includes(String(unidad.edificioId))) {
+        usuario.edificioIds.push(String(unidad.edificioId));
+    }
+
+    if (!usuario.edificioId && unidad.edificioId) {
+        usuario.edificioId = unidad.edificioId;
+    }
 }
 
 function actualizarUnidadPrincipalSiCorresponde(usuario, unidad, tipoVinculacion) {
@@ -555,6 +627,7 @@ function actualizarUnidadPrincipalSiCorresponde(usuario, unidad, tipoVinculacion
         usuario.departamentoNumero = unidad.numero;
         usuario.tipoUnidad = tipoUnidad;
         usuario.tipoResidente = tipoVinculacion;
+        usuario.edificioId = unidad.edificioId || usuario.edificioId;
         return;
     }
 
@@ -577,6 +650,7 @@ function actualizarUnidadPrincipalSiCorresponde(usuario, unidad, tipoVinculacion
         usuario.departamentoNumero = unidad.numero;
         usuario.tipoUnidad = tipoUnidad;
         usuario.tipoResidente = tipoVinculacion;
+        usuario.edificioId = unidad.edificioId || usuario.edificioId;
     }
 }
 
@@ -590,6 +664,8 @@ function recalcularUnidadPrincipalUsuario(usuario, db) {
         usuario.departamentoNumero = null;
         usuario.tipoUnidad = null;
         usuario.tipoResidente = null;
+        usuario.edificioId = null;
+        usuario.edificioIds = [];
         return;
     }
 
@@ -619,6 +695,14 @@ function recalcularUnidadPrincipalUsuario(usuario, db) {
     usuario.departamentoNumero = principal.unidadNumero;
     usuario.tipoUnidad = principal.tipoUnidad;
     usuario.tipoResidente = principal.tipoVinculacion;
+    usuario.edificioId = principal.edificioId || null;
+
+    usuario.edificioIds = [...new Set(
+        unidades
+            .map(item => item.edificioId)
+            .filter(Boolean)
+            .map(String)
+    )];
 }
 
 function generarCodigoInvitacion() {

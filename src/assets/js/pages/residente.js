@@ -10,6 +10,11 @@ function protegerPaginaResidente() {
         window.location.href = "../../../index.html";
         return;
     }
+
+    if (sesion.rol !== "residente") {
+        alert("No tienes permisos para acceder a esta página.");
+        window.location.href = "../admin/dashboard.html";
+    }
 }
 
 function cargarVistaResidente() {
@@ -20,31 +25,72 @@ function cargarVistaResidente() {
         `Bienvenido, ${sesion?.nombre || "Residente"}`;
 
     cargarEstadisticasResidente(db, sesion);
-    renderizarAreasResidente(db);
+    renderizarAreasResidente(db, sesion);
     renderizarUltimasReservasResidente(db, sesion);
 }
 
-function cargarEstadisticasResidente(db, sesion) {
-    const areasDisponibles = (db.areasComunes || []).filter(area =>
-        normalizarEstadoArea(area.estado) === "disponible"
-    );
+function obtenerUnidadesVinculadasSesion(sesion) {
+    return sesion?.unidadesAutorizadas || [];
+}
 
+function obtenerIdsUnidadesVinculadas(sesion) {
+    const ids = obtenerUnidadesVinculadasSesion(sesion)
+        .map(unidad => String(unidad.unidadId))
+        .filter(Boolean);
+
+    if (sesion?.departamentoId) {
+        ids.push(String(sesion.departamentoId));
+    }
+
+    return [...new Set(ids)];
+}
+
+function obtenerEdificiosVinculadosSesion(sesion) {
+    const ids = obtenerUnidadesVinculadasSesion(sesion)
+        .map(unidad => unidad.edificioId)
+        .filter(Boolean)
+        .map(String);
+
+    if (sesion?.edificioId) {
+        ids.push(String(sesion.edificioId));
+    }
+
+    return [...new Set(ids)];
+}
+
+function cargarEstadisticasResidente(db, sesion) {
+    const edificiosPermitidos = obtenerEdificiosVinculadosSesion(sesion);
     const reservas = obtenerReservasDelResidente(db, sesion);
+
+    const areasDisponibles = (db.areasComunes || []).filter(area => {
+        const perteneceEdificio =
+            edificiosPermitidos.length === 0 ||
+            edificiosPermitidos.includes(String(area.edificioId || ""));
+
+        return perteneceEdificio &&
+            normalizarEstadoArea(area.estado) === "disponible";
+    });
 
     document.getElementById("totalAreas").textContent = areasDisponibles.length;
     document.getElementById("totalReservas").textContent = reservas.length;
 }
 
-function renderizarAreasResidente(db) {
+function renderizarAreasResidente(db, sesion) {
     const tabla = document.getElementById("tablaAreasResidente");
-    const areas = db.areasComunes || [];
 
     if (!tabla) return;
+
+    const edificiosPermitidos = obtenerEdificiosVinculadosSesion(sesion);
+
+    const areas = (db.areasComunes || []).filter(area =>
+        edificiosPermitidos.length === 0 ||
+        edificiosPermitidos.includes(String(area.edificioId || ""))
+    );
 
     if (areas.length === 0) {
         tabla.innerHTML = `
             <tr>
-                <td colspan="4">No hay áreas comunes registradas.</td>
+                <td colspan="4">No hay áreas comunes registradas para tus edificios vinculados.</td>
             </tr>
         `;
         return;
@@ -101,9 +147,18 @@ function renderizarUltimasReservasResidente(db, sesion) {
 }
 
 function obtenerReservasDelResidente(db, sesion) {
-    return (db.reservas || []).filter(reserva =>
-        String(reserva.departamentoId) === String(sesion?.departamentoId)
-    );
+    const idsUnidades = obtenerIdsUnidadesVinculadas(sesion);
+    const edificiosPermitidos = obtenerEdificiosVinculadosSesion(sesion);
+
+    return (db.reservas || []).filter(reserva => {
+        const perteneceUnidad = idsUnidades.includes(String(reserva.departamentoId));
+        const perteneceEdificio =
+            !reserva.edificioId ||
+            edificiosPermitidos.length === 0 ||
+            edificiosPermitidos.includes(String(reserva.edificioId));
+
+        return perteneceUnidad && perteneceEdificio;
+    });
 }
 
 function normalizarEstadoArea(estado) {

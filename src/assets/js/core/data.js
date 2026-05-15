@@ -9,18 +9,30 @@ function obtenerTodo() {
         configEdificio: null,
         edificios: [],
         departamentos: [],
+        unidadesGeneradas: [],
         usuarios: [],
         gastosMensuales: [],
         areasComunes: [],
-        reservas: []
+        reservas: [],
+        anuncios: [],
+        notificaciones: [],
+        correosEnviados: [],
+        lecturasAnuncios: []
     };
 
     if (!db.edificios) db.edificios = [];
     if (!db.departamentos) db.departamentos = [];
+    if (!db.unidadesGeneradas) db.unidadesGeneradas = [];
     if (!db.usuarios) db.usuarios = [];
     if (!db.gastosMensuales) db.gastosMensuales = [];
     if (!db.areasComunes) db.areasComunes = [];
     if (!db.reservas) db.reservas = [];
+    if (!db.anuncios) db.anuncios = [];
+    if (!db.notificaciones) db.notificaciones = [];
+    if (!db.correosEnviados) db.correosEnviados = [];
+    if (!db.lecturasAnuncios) db.lecturasAnuncios = [];
+
+    migrarRolesYEdificios(db);
 
     db.departamentos.forEach(unidad => {
         if (!unidad.autorizados) unidad.autorizados = [];
@@ -33,6 +45,186 @@ function guardarTodo(db) {
     localStorage.setItem("edifika_db", JSON.stringify(db));
 }
 
+function migrarRolesYEdificios(db) {
+    db.usuarios = db.usuarios || [];
+    db.edificios = db.edificios || [];
+
+    db.usuarios.forEach(usuario => {
+        if (usuario.correo === "admin@edifika.com") {
+            usuario.rol = "superadmin";
+            usuario.esSuperAdmin = true;
+        }
+
+        if (usuario.rol === "admin" && usuario.correo === "admin@edifika.com") {
+            usuario.rol = "superadmin";
+            usuario.esSuperAdmin = true;
+        }
+
+        if (!usuario.edificioIds) usuario.edificioIds = [];
+
+        if (usuario.rol === "residente" && !usuario.unidadesAutorizadas) {
+            usuario.unidadesAutorizadas = [];
+        }
+    });
+
+    db.edificios.forEach(edificio => {
+        if (!edificio.administradoresIds) edificio.administradoresIds = [];
+        if (!edificio.creadoPor) edificio.creadoPor = "sistema";
+    });
+
+    const edificioActivo = db.edificios.find(e => e.activo);
+
+    if (edificioActivo) {
+        asignarEdificioIdSiFalta(db.departamentos, edificioActivo.id);
+        asignarEdificioIdSiFalta(db.unidadesGeneradas, edificioActivo.id);
+        asignarEdificioIdSiFalta(db.areasComunes, edificioActivo.id);
+        asignarEdificioIdSiFalta(db.reservas, edificioActivo.id);
+        asignarEdificioIdSiFalta(db.anuncios, edificioActivo.id);
+        asignarEdificioIdSiFalta(db.gastosMensuales, edificioActivo.id);
+
+        if (db.configEdificio && !db.configEdificio.edificioId) {
+            db.configEdificio.edificioId = edificioActivo.id;
+        }
+    }
+}
+
+function asignarEdificioIdSiFalta(lista, edificioId) {
+    (lista || []).forEach(item => {
+        if (!item.edificioId) {
+            item.edificioId = edificioId;
+        }
+    });
+}
+
+// ==========================================
+// SESIÓN, ROLES Y PERMISOS
+// ==========================================
+
+function obtenerSesionActualData() {
+    return JSON.parse(localStorage.getItem("usuarioSesion"));
+}
+
+function esSuperAdmin(usuario = null) {
+    const sesion = usuario || obtenerSesionActualData();
+
+    return sesion?.rol === "superadmin" || sesion?.esSuperAdmin === true;
+}
+
+function esAdminEdificio(usuario = null) {
+    const sesion = usuario || obtenerSesionActualData();
+
+    return sesion?.rol === "admin";
+}
+
+function esResidente(usuario = null) {
+    const sesion = usuario || obtenerSesionActualData();
+
+    return sesion?.rol === "residente";
+}
+
+function obtenerEdificioActivoId() {
+    const sesion = obtenerSesionActualData();
+    const db = obtenerTodo();
+
+    if (esSuperAdmin(sesion)) {
+        const edificioSeleccionado = localStorage.getItem("edifika_edificio_activo");
+
+        if (edificioSeleccionado && edificioSeleccionado !== "todos") {
+            return edificioSeleccionado;
+        }
+
+        const activo = db.edificios.find(e => e.activo);
+        return activo?.id || null;
+    }
+
+    if (esAdminEdificio(sesion)) {
+        return sesion.edificioId || sesion.edificioIds?.[0] || null;
+    }
+
+    if (esResidente(sesion)) {
+        const unidad = (sesion.unidadesAutorizadas || [])[0];
+        return unidad?.edificioId || sesion.edificioId || null;
+    }
+
+    const activo = db.edificios.find(e => e.activo);
+    return activo?.id || null;
+}
+
+function obtenerEdificiosPermitidosSesion() {
+    const sesion = obtenerSesionActualData();
+    const db = obtenerTodo();
+
+    if (esSuperAdmin(sesion)) {
+        const edificioSeleccionado = localStorage.getItem("edifika_edificio_activo");
+
+        if (edificioSeleccionado && edificioSeleccionado !== "todos") {
+            return [edificioSeleccionado];
+        }
+
+        return db.edificios.map(e => String(e.id));
+    }
+
+    if (esAdminEdificio(sesion)) {
+        return (sesion.edificioIds || [sesion.edificioId])
+            .filter(Boolean)
+            .map(String);
+    }
+
+    if (esResidente(sesion)) {
+        const ids = (sesion.unidadesAutorizadas || [])
+            .map(u => u.edificioId)
+            .filter(Boolean)
+            .map(String);
+
+        if (sesion.edificioId) ids.push(String(sesion.edificioId));
+
+        return [...new Set(ids)];
+    }
+
+    return [];
+}
+
+function usuarioPuedeVerEdificio(edificioId) {
+    const permitidos = obtenerEdificiosPermitidosSesion();
+
+    if (permitidos.length === 0) return true;
+
+    return permitidos.includes(String(edificioId));
+}
+
+function filtrarPorEdificioPermitido(lista) {
+    const permitidos = obtenerEdificiosPermitidosSesion();
+
+    if (permitidos.length === 0) return lista || [];
+
+    return (lista || []).filter(item =>
+        !item.edificioId || permitidos.includes(String(item.edificioId))
+    );
+}
+
+function protegerPaginaAdminData() {
+    const sesion = obtenerSesionActualData();
+
+    if (!sesion) {
+        window.location.href = "../../../index.html";
+        return false;
+    }
+
+    if (sesion.rol !== "admin" && sesion.rol !== "superadmin") {
+        alert("No tienes permisos para acceder a esta página.");
+        window.location.href = "../residente/inicio.html";
+        return false;
+    }
+
+    return true;
+}
+
+function obtenerEdificioPorId(db, edificioId) {
+    return (db.edificios || []).find(e =>
+        String(e.id) === String(edificioId)
+    ) || null;
+}
+
 // ==========================================
 // CONFIGURACIÓN EDIFICIO
 // ==========================================
@@ -40,7 +232,10 @@ function guardarTodo(db) {
 function guardarConfiguracionEdificio(config) {
     const db = obtenerTodo();
 
+    const edificioId = config.edificioId || obtenerEdificioActivoId();
+
     db.configEdificio = {
+        edificioId,
         nombre: config.nombre,
         direccion: config.direccion,
         pisos: config.pisos,
@@ -48,6 +243,12 @@ function guardarConfiguracionEdificio(config) {
         tieneOficinas: config.tieneOficinas || "no",
         tieneEstacionamientos: config.tieneEstacionamientos || "si",
         tieneDepositos: config.tieneDepositos || "si",
+        modoConfiguracion: config.modoConfiguracion || "simple",
+        departamentosPorPiso: config.departamentosPorPiso || 0,
+        oficinasPorPiso: config.oficinasPorPiso || 0,
+        estacionamientosPorSotano: config.estacionamientosPorSotano || 0,
+        depositosPorSotano: config.depositosPorSotano || 0,
+        configuracionAvanzada: config.configuracionAvanzada || [],
         fechaRegistro: new Date().toISOString()
     };
 
@@ -56,10 +257,13 @@ function guardarConfiguracionEdificio(config) {
     return { ok: true };
 }
 
-function validarCambioPisos(nuevoMaximo) {
+function validarCambioPisos(nuevoMaximo, edificioId = null) {
     const db = obtenerTodo();
+    const edificioFiltro = edificioId || obtenerEdificioActivoId();
 
     const unidadInvalida = db.departamentos.find(unidad => {
+        if (edificioFiltro && String(unidad.edificioId) !== String(edificioFiltro)) return false;
+
         const piso = String(unidad.piso);
 
         if (piso.startsWith("S")) return false;
@@ -97,18 +301,20 @@ function agregarDepartamento(unidad) {
     if (!validacion.ok) return validacion;
 
     const existe = db.departamentos.some(item =>
-        String(item.numero).toUpperCase() === datos.numero
+        String(item.numero).toUpperCase() === datos.numero &&
+        String(item.edificioId || "") === String(datos.edificioId || "")
     );
 
     if (existe) {
         return {
             ok: false,
-            error: "Ya existe una unidad con ese código."
+            error: "Ya existe una unidad con ese código en este edificio."
         };
     }
 
     const nuevaUnidad = {
         id: Date.now().toString(),
+        edificioId: datos.edificioId,
         numero: datos.numero,
         piso: datos.piso,
         tipo: datos.tipo,
@@ -158,23 +364,29 @@ function editarDepartamento(id, unidad) {
         };
     }
 
-    const datos = normalizarDatosUnidad(unidad);
+    const datos = normalizarDatosUnidad({
+        ...unidad,
+        edificioId: unidad.edificioId || existente.edificioId
+    });
+
     const validacion = validarUnidad(datos, db);
 
     if (!validacion.ok) return validacion;
 
     const duplicado = db.departamentos.some(item =>
         String(item.id) !== String(id) &&
-        String(item.numero).toUpperCase() === datos.numero
+        String(item.numero).toUpperCase() === datos.numero &&
+        String(item.edificioId || "") === String(datos.edificioId || "")
     );
 
     if (duplicado) {
         return {
             ok: false,
-            error: "Ya existe otra unidad con ese código."
+            error: "Ya existe otra unidad con ese código en este edificio."
         };
     }
 
+    existente.edificioId = datos.edificioId;
     existente.numero = datos.numero;
     existente.piso = datos.piso;
     existente.tipo = datos.tipo;
@@ -235,6 +447,7 @@ function eliminarDepartamento(id) {
 
 function normalizarDatosUnidad(unidad) {
     return {
+        edificioId: String(unidad.edificioId || obtenerEdificioActivoId() || "").trim(),
         numero: String(unidad.numero || "").trim().toUpperCase(),
         piso: String(unidad.piso || "").trim(),
         tipo: normalizarTipoUnidadData(unidad.tipo),
@@ -244,6 +457,13 @@ function normalizarDatosUnidad(unidad) {
 }
 
 function validarUnidad(datos, db) {
+    if (!datos.edificioId) {
+        return {
+            ok: false,
+            error: "La unidad debe estar asociada a un edificio."
+        };
+    }
+
     if (!datos.numero || !datos.piso || !datos.tipo) {
         return {
             ok: false,
@@ -251,12 +471,12 @@ function validarUnidad(datos, db) {
         };
     }
 
-    const config = db.configEdificio;
+    const config = obtenerConfigEdificioParaUnidad(db, datos.edificioId);
 
     if (!config) {
         return {
             ok: false,
-            error: "No existe un edificio activo configurado."
+            error: "No existe una configuración para el edificio seleccionado."
         };
     }
 
@@ -274,7 +494,36 @@ function validarUnidad(datos, db) {
         };
     }
 
-    return validarFormatoUnidad(datos.numero, datos.tipo, datos.piso);
+    return validarFormatoUnidad(datos.numero, datos.tipo, datos.piso, datos.edificioId);
+}
+
+function obtenerConfigEdificioParaUnidad(db, edificioId) {
+    const edificio = (db.edificios || []).find(e =>
+        String(e.id) === String(edificioId)
+    );
+
+    if (edificio) {
+        return {
+            edificioId: edificio.id,
+            pisos: edificio.pisos,
+            sotanos: edificio.sotanos,
+            tieneOficinas: edificio.tieneOficinas,
+            tieneEstacionamientos: edificio.tieneEstacionamientos,
+            tieneDepositos: edificio.tieneDepositos,
+            modoConfiguracion: edificio.modoConfiguracion,
+            departamentosPorPiso: edificio.departamentosPorPiso,
+            oficinasPorPiso: edificio.oficinasPorPiso,
+            estacionamientosPorSotano: edificio.estacionamientosPorSotano,
+            depositosPorSotano: edificio.depositosPorSotano,
+            configuracionAvanzada: edificio.configuracionAvanzada || []
+        };
+    }
+
+    if (db.configEdificio && String(db.configEdificio.edificioId || "") === String(edificioId)) {
+        return db.configEdificio;
+    }
+
+    return db.configEdificio || null;
 }
 
 function tipoPermitido(tipo, config) {
@@ -309,8 +558,8 @@ function ubicacionPermitida(tipo, piso, config) {
     return false;
 }
 
-function validarFormatoUnidad(numero, tipo, piso) {
-    const unidadGenerada = validarFormatoUnidadGenerada(numero, tipo, piso);
+function validarFormatoUnidad(numero, tipo, piso, edificioId = null) {
+    const unidadGenerada = validarFormatoUnidadGenerada(numero, tipo, piso, edificioId);
 
     if (unidadGenerada.ok) {
         return { ok: true };
@@ -393,12 +642,15 @@ function validarFormatoUnidad(numero, tipo, piso) {
     return { ok: true };
 }
 
-function validarFormatoUnidadGenerada(numero, tipo, piso) {
+function validarFormatoUnidadGenerada(numero, tipo, piso, edificioId = null) {
     const db = obtenerTodo();
 
-    const unidad = (db.unidadesGeneradas || []).find(item =>
-        String(item.codigo).toUpperCase() === String(numero).toUpperCase()
-    );
+    const unidad = (db.unidadesGeneradas || []).find(item => {
+        const mismoCodigo = String(item.codigo).toUpperCase() === String(numero).toUpperCase();
+        const mismoEdificio = edificioId ? String(item.edificioId || "") === String(edificioId) : true;
+
+        return mismoCodigo && mismoEdificio;
+    });
 
     if (!unidad) {
         return { ok: false };
@@ -439,6 +691,152 @@ function normalizarEstadoUnidadData(estado) {
     if (valor === "inactiva" || valor === "inactivo") return "inactiva";
 
     return "disponible";
+}
+
+// ==========================================
+// USUARIOS ADMINISTRADORES
+// ==========================================
+
+function crearAdministradorEdificio(datosAdmin) {
+    const db = obtenerTodo();
+
+    const nombre = String(datosAdmin.nombre || "").trim();
+    const correo = String(datosAdmin.correo || "").trim().toLowerCase();
+    const clave = String(datosAdmin.clave || "").trim();
+    const edificioIds = (datosAdmin.edificioIds || [datosAdmin.edificioId])
+        .filter(Boolean)
+        .map(String);
+
+    if (!nombre || !correo || !clave || edificioIds.length === 0) {
+        return {
+            ok: false,
+            error: "Completa los datos del administrador y selecciona al menos un edificio."
+        };
+    }
+
+    const existe = db.usuarios.some(usuario =>
+        String(usuario.correo || "").toLowerCase() === correo
+    );
+
+    if (existe) {
+        return {
+            ok: false,
+            error: "Ya existe un usuario registrado con ese correo."
+        };
+    }
+
+    const nuevoAdmin = {
+        id: Date.now().toString(),
+        nombre,
+        correo,
+        clave,
+        rol: "admin",
+        edificioIds,
+        edificioId: edificioIds[0],
+        fechaRegistro: new Date().toISOString()
+    };
+
+    db.usuarios.push(nuevoAdmin);
+
+    db.edificios.forEach(edificio => {
+        if (edificioIds.includes(String(edificio.id))) {
+            edificio.administradoresIds = edificio.administradoresIds || [];
+
+            if (!edificio.administradoresIds.includes(nuevoAdmin.id)) {
+                edificio.administradoresIds.push(nuevoAdmin.id);
+            }
+        }
+    });
+
+    guardarTodo(db);
+
+    return {
+        ok: true,
+        usuario: nuevoAdmin
+    };
+}
+
+function actualizarAdministradorEdificio(usuarioId, datosAdmin) {
+    const db = obtenerTodo();
+
+    const usuario = db.usuarios.find(u =>
+        String(u.id) === String(usuarioId)
+    );
+
+    if (!usuario) {
+        return {
+            ok: false,
+            error: "Administrador no encontrado."
+        };
+    }
+
+    const edificioIds = (datosAdmin.edificioIds || [datosAdmin.edificioId])
+        .filter(Boolean)
+        .map(String);
+
+    usuario.nombre = String(datosAdmin.nombre || usuario.nombre || "").trim();
+    usuario.correo = String(datosAdmin.correo || usuario.correo || "").trim().toLowerCase();
+
+    if (datosAdmin.clave) {
+        usuario.clave = String(datosAdmin.clave).trim();
+    }
+
+    usuario.rol = "admin";
+    usuario.edificioIds = edificioIds;
+    usuario.edificioId = edificioIds[0] || null;
+
+    db.edificios.forEach(edificio => {
+        edificio.administradoresIds = (edificio.administradoresIds || []).filter(id =>
+            String(id) !== String(usuario.id)
+        );
+
+        if (edificioIds.includes(String(edificio.id))) {
+            edificio.administradoresIds.push(usuario.id);
+        }
+    });
+
+    guardarTodo(db);
+
+    return {
+        ok: true,
+        usuario
+    };
+}
+
+function eliminarAdministradorEdificio(usuarioId) {
+    const db = obtenerTodo();
+
+    const usuario = db.usuarios.find(u =>
+        String(u.id) === String(usuarioId)
+    );
+
+    if (!usuario) {
+        return {
+            ok: false,
+            error: "Administrador no encontrado."
+        };
+    }
+
+    if (usuario.rol !== "admin") {
+        return {
+            ok: false,
+            error: "Solo puedes eliminar administradores secundarios desde esta función."
+        };
+    }
+
+    db.usuarios = db.usuarios.filter(u =>
+        String(u.id) !== String(usuarioId)
+    );
+
+    db.edificios.forEach(edificio => {
+        edificio.administradoresIds = (edificio.administradoresIds || []).filter(id =>
+            String(id) !== String(usuarioId)
+        );
+    });
+
+    guardarTodo(db);
+
+    return { ok: true };
 }
 
 // ==========================================
@@ -612,6 +1010,7 @@ function agregarAreaComun(area) {
     const db = obtenerTodo();
 
     const nombre = String(area.nombre || "").trim();
+    const edificioId = area.edificioId || obtenerEdificioActivoId();
 
     if (!nombre) {
         return {
@@ -620,19 +1019,28 @@ function agregarAreaComun(area) {
         };
     }
 
+    if (!edificioId) {
+        return {
+            ok: false,
+            error: "Selecciona un edificio para registrar el área común."
+        };
+    }
+
     const duplicado = db.areasComunes.some(item =>
-        String(item.nombre).toLowerCase() === nombre.toLowerCase()
+        String(item.nombre).toLowerCase() === nombre.toLowerCase() &&
+        String(item.edificioId || "") === String(edificioId)
     );
 
     if (duplicado) {
         return {
             ok: false,
-            error: "Ya existe un área común con ese nombre."
+            error: "Ya existe un área común con ese nombre en este edificio."
         };
     }
 
     const nuevaArea = {
         id: Date.now().toString(),
+        edificioId,
         nombre,
         aforo: area.aforo,
         descripcion: String(area.descripcion || "").trim(),
@@ -719,6 +1127,7 @@ function agregarReservaArea(reserva) {
 
     const nuevaReserva = {
         id: Date.now().toString(),
+        edificioId: reserva.edificioId || area.edificioId || obtenerEdificioActivoId(),
         areaId: reserva.areaId,
         departamentoId: reserva.departamentoId,
         fecha: reserva.fecha,
@@ -814,4 +1223,6 @@ function obtenerFechaHoyData() {
 
 function limpiarDB() {
     localStorage.removeItem("edifika_db");
+    localStorage.removeItem("usuarioSesion");
+    localStorage.removeItem("edifika_edificio_activo");
 }

@@ -1,18 +1,28 @@
 document.addEventListener("DOMContentLoaded", () => {
     protegerPaginaAdmin();
     inicializarEdificios();
+
     renderizarEdificios();
     renderizarUnidadesGeneradas();
+    renderizarAdministradoresEdificio();
 
     configurarFormulario();
+    configurarFormularioAdministrador();
     configurarBotones();
     configurarPreviewNomenclatura();
+
+    cargarSelectEdificiosAdministradores();
 
     alternarModoConfiguracion();
     actualizarPreviewNomenclatura();
 });
 
 function protegerPaginaAdmin() {
+    if (typeof protegerPaginaAdminData === "function") {
+        protegerPaginaAdminData();
+        return;
+    }
+
     const sesion = JSON.parse(localStorage.getItem("usuarioSesion"));
 
     if (!sesion) {
@@ -20,7 +30,7 @@ function protegerPaginaAdmin() {
         return;
     }
 
-    if (sesion.rol !== "admin") {
+    if (sesion.rol !== "admin" && sesion.rol !== "superadmin") {
         alert("No tienes permisos para acceder a esta página.");
         window.location.href = "../residente/inicio.html";
     }
@@ -31,6 +41,12 @@ function inicializarEdificios() {
 
     db.edificios = db.edificios || [];
     db.unidadesGeneradas = db.unidadesGeneradas || [];
+    db.usuarios = db.usuarios || [];
+
+    db.edificios.forEach(edificio => {
+        edificio.administradoresIds = edificio.administradoresIds || [];
+        edificio.creadoPor = edificio.creadoPor || obtenerSesionId();
+    });
 
     guardarTodo(db);
 }
@@ -60,6 +76,7 @@ function configurarFormulario() {
         limpiarFormulario();
         renderizarEdificios();
         renderizarUnidadesGeneradas();
+        cargarSelectEdificiosAdministradores();
     });
 }
 
@@ -99,7 +116,12 @@ function obtenerDatosFormulario() {
     }
 
     if (modo === "simple") {
-        if (datos.departamentosPorPiso < 0 || datos.oficinasPorPiso < 0 || datos.estacionamientosPorSotano < 0 || datos.depositosPorSotano < 0) {
+        if (
+            datos.departamentosPorPiso < 0 ||
+            datos.oficinasPorPiso < 0 ||
+            datos.estacionamientosPorSotano < 0 ||
+            datos.depositosPorSotano < 0
+        ) {
             return { ok: false, error: "Las cantidades no pueden ser negativas." };
         }
     }
@@ -129,9 +151,14 @@ function configurarBotones() {
     const btnGenerar = document.getElementById("btnGenerarNomenclatura");
     const btnConstruirAvanzada = document.getElementById("btnConstruirConfiguracionAvanzada");
     const modo = document.getElementById("modoConfiguracionUnidades");
+    const btnCancelarAdmin = document.getElementById("btnCancelarAdminEdificio");
 
     if (btnCancelar) {
         btnCancelar.addEventListener("click", limpiarFormulario);
+    }
+
+    if (btnCancelarAdmin) {
+        btnCancelarAdmin.addEventListener("click", limpiarFormularioAdministrador);
     }
 
     if (btnLimpiar) {
@@ -147,6 +174,7 @@ function configurarBotones() {
 
     if (btnGenerar) {
         btnGenerar.addEventListener("click", () => {
+            const id = document.getElementById("edificioId").value;
             const datos = obtenerDatosFormulario();
 
             if (!datos.ok) {
@@ -154,6 +182,12 @@ function configurarBotones() {
                 return;
             }
 
+            if (!id) {
+                alert("Primero guarda el edificio. Luego podrás generar su nomenclatura.");
+                return;
+            }
+
+            datos.data.edificioId = id;
             generarUnidades(datos.data);
         });
     }
@@ -222,7 +256,6 @@ function construirTablaAvanzada(configuracionExistente = null) {
     }
 
     const configuracion = configuracionExistente || [];
-
     let html = "";
 
     for (let piso = 1; piso <= pisos; piso++) {
@@ -233,49 +266,10 @@ function construirTablaAvanzada(configuracionExistente = null) {
         html += `
             <tr data-tipo-nivel="piso" data-nivel="${piso}">
                 <td>Piso ${piso}</td>
-
-                <td>
-                    <input
-                        type="number"
-                        class="adv-departamentos"
-                        min="0"
-                        value="${existente?.departamentos ?? 4}"
-                        style="width:90px;"
-                    >
-                </td>
-
-                <td>
-                    <input
-                        type="number"
-                        class="adv-oficinas"
-                        min="0"
-                        value="${tieneOficinas === "si" ? (existente?.oficinas ?? 0) : 0}"
-                        ${tieneOficinas === "si" ? "" : "disabled"}
-                        style="width:90px;"
-                    >
-                </td>
-
-                <td>
-                    <input
-                        type="number"
-                        class="adv-estacionamientos"
-                        min="0"
-                        value="0"
-                        disabled
-                        style="width:90px;"
-                    >
-                </td>
-
-                <td>
-                    <input
-                        type="number"
-                        class="adv-depositos"
-                        min="0"
-                        value="0"
-                        disabled
-                        style="width:90px;"
-                    >
-                </td>
+                <td><input type="number" class="adv-departamentos" min="0" value="${existente?.departamentos ?? 4}" style="width:90px;"></td>
+                <td><input type="number" class="adv-oficinas" min="0" value="${tieneOficinas === "si" ? (existente?.oficinas ?? 0) : 0}" ${tieneOficinas === "si" ? "" : "disabled"} style="width:90px;"></td>
+                <td><input type="number" class="adv-estacionamientos" min="0" value="0" disabled style="width:90px;"></td>
+                <td><input type="number" class="adv-depositos" min="0" value="0" disabled style="width:90px;"></td>
             </tr>
         `;
     }
@@ -288,50 +282,10 @@ function construirTablaAvanzada(configuracionExistente = null) {
         html += `
             <tr data-tipo-nivel="sotano" data-nivel="${sotano}">
                 <td>Sótano ${sotano}</td>
-
-                <td>
-                    <input
-                        type="number"
-                        class="adv-departamentos"
-                        min="0"
-                        value="0"
-                        disabled
-                        style="width:90px;"
-                    >
-                </td>
-
-                <td>
-                    <input
-                        type="number"
-                        class="adv-oficinas"
-                        min="0"
-                        value="0"
-                        disabled
-                        style="width:90px;"
-                    >
-                </td>
-
-                <td>
-                    <input
-                        type="number"
-                        class="adv-estacionamientos"
-                        min="0"
-                        value="${tieneEstacionamientos === "si" ? (existente?.estacionamientos ?? 10) : 0}"
-                        ${tieneEstacionamientos === "si" ? "" : "disabled"}
-                        style="width:90px;"
-                    >
-                </td>
-
-                <td>
-                    <input
-                        type="number"
-                        class="adv-depositos"
-                        min="0"
-                        value="${tieneDepositos === "si" ? (existente?.depositos ?? 10) : 0}"
-                        ${tieneDepositos === "si" ? "" : "disabled"}
-                        style="width:90px;"
-                    >
-                </td>
+                <td><input type="number" class="adv-departamentos" min="0" value="0" disabled style="width:90px;"></td>
+                <td><input type="number" class="adv-oficinas" min="0" value="0" disabled style="width:90px;"></td>
+                <td><input type="number" class="adv-estacionamientos" min="0" value="${tieneEstacionamientos === "si" ? (existente?.estacionamientos ?? 10) : 0}" ${tieneEstacionamientos === "si" ? "" : "disabled"} style="width:90px;"></td>
+                <td><input type="number" class="adv-depositos" min="0" value="${tieneDepositos === "si" ? (existente?.depositos ?? 10) : 0}" ${tieneDepositos === "si" ? "" : "disabled"} style="width:90px;"></td>
             </tr>
         `;
     }
@@ -474,34 +428,11 @@ function actualizarPreviewAvanzado() {
         configuracionAvanzada: configuracion
     });
 
-    const departamentos = unidades
-        .filter(u => u.tipo === "departamento")
-        .slice(0, 4)
-        .map(u => u.codigo);
-
-    const oficinas = unidades
-        .filter(u => u.tipo === "oficina")
-        .slice(0, 4)
-        .map(u => u.codigo);
-
-    const estacionamientos = unidades
-        .filter(u => u.tipo === "estacionamiento")
-        .slice(0, 4)
-        .map(u => u.codigo);
-
-    const depositos = unidades
-        .filter(u => u.tipo === "deposito")
-        .slice(0, 4)
-        .map(u => u.codigo);
-
-    let html = "";
-
-    html += crearCardPreview("🏢 Departamentos", departamentos);
-    html += crearCardPreview("🏬 Oficinas / Locales", oficinas);
-    html += crearCardPreview("🚗 Estacionamientos", estacionamientos);
-    html += crearCardPreview("📦 Depósitos", depositos);
-
-    preview.innerHTML = html;
+    preview.innerHTML =
+        crearCardPreview("🏢 Departamentos", unidades.filter(u => u.tipo === "departamento").slice(0, 4).map(u => u.codigo)) +
+        crearCardPreview("🏬 Oficinas / Locales", unidades.filter(u => u.tipo === "oficina").slice(0, 4).map(u => u.codigo)) +
+        crearCardPreview("🚗 Estacionamientos", unidades.filter(u => u.tipo === "estacionamiento").slice(0, 4).map(u => u.codigo)) +
+        crearCardPreview("📦 Depósitos", unidades.filter(u => u.tipo === "deposito").slice(0, 4).map(u => u.codigo));
 
     actualizarResumenGeneracion(
         unidades.filter(u => u.tipo === "departamento").length,
@@ -515,7 +446,6 @@ function crearCardPreview(titulo, items) {
     return `
         <div style="padding:15px; border:1px solid #ddd; border-radius:10px; background:white;">
             <strong>${titulo}</strong>
-
             <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
                 ${
                     items.length > 0
@@ -543,6 +473,8 @@ function registrarEdificio(datos) {
 
     db.edificios = db.edificios || [];
 
+    const sesion = JSON.parse(localStorage.getItem("usuarioSesion"));
+
     const nuevoEdificio = {
         id: Date.now().toString(),
         nombre: datos.nombre,
@@ -558,6 +490,8 @@ function registrarEdificio(datos) {
         estacionamientosPorSotano: datos.estacionamientosPorSotano,
         depositosPorSotano: datos.depositosPorSotano,
         configuracionAvanzada: datos.configuracionAvanzada || [],
+        administradoresIds: [],
+        creadoPor: sesion?.id || "sistema",
         activo: db.edificios.length === 0,
         fechaCreacion: new Date().toISOString()
     };
@@ -566,13 +500,12 @@ function registrarEdificio(datos) {
 
     if (nuevoEdificio.activo) {
         db.configEdificio = crearConfigDesdeEdificio(nuevoEdificio);
+        localStorage.setItem("edifika_edificio_activo", nuevoEdificio.id);
     }
 
     guardarTodo(db);
 
-    generarUnidades(datos);
-
-    alert("Edificio registrado correctamente.");
+    alert("Edificio registrado correctamente. Ahora puedes generar su nomenclatura o asignar administradores.");
 }
 
 function editarEdificio(id, datos) {
@@ -598,6 +531,7 @@ function editarEdificio(id, datos) {
     edificio.estacionamientosPorSotano = datos.estacionamientosPorSotano;
     edificio.depositosPorSotano = datos.depositosPorSotano;
     edificio.configuracionAvanzada = datos.configuracionAvanzada || [];
+    edificio.administradoresIds = edificio.administradoresIds || [];
 
     if (edificio.activo) {
         db.configEdificio = crearConfigDesdeEdificio(edificio);
@@ -605,13 +539,18 @@ function editarEdificio(id, datos) {
 
     guardarTodo(db);
 
-    generarUnidades(datos);
-
     alert("Edificio actualizado correctamente.");
 }
 
 function generarUnidades(datos) {
     const db = obtenerTodo();
+
+    const edificioId = datos.edificioId || document.getElementById("edificioId").value;
+
+    if (!edificioId) {
+        alert("Primero guarda o selecciona un edificio.");
+        return;
+    }
 
     let unidades = [];
 
@@ -621,13 +560,22 @@ function generarUnidades(datos) {
         unidades = construirUnidadesDesdeSimple(datos);
     }
 
-    db.unidadesGeneradas = unidades;
+    unidades = unidades.map(unidad => ({
+        ...unidad,
+        edificioId
+    }));
+
+    db.unidadesGeneradas = (db.unidadesGeneradas || []).filter(unidad =>
+        String(unidad.edificioId) !== String(edificioId)
+    );
+
+    db.unidadesGeneradas.push(...unidades);
 
     guardarTodo(db);
 
     renderizarUnidadesGeneradas();
 
-    alert(`Se generaron ${unidades.length} unidades automáticamente.`);
+    alert(`Se generaron ${unidades.length} unidades automáticamente para este edificio.`);
 }
 
 function construirUnidadesDesdeSimple(datos) {
@@ -739,12 +687,12 @@ function renderizarEdificios() {
 
     if (!tabla) return;
 
-    const edificios = db.edificios || [];
+    const edificios = obtenerEdificiosVisibles(db);
 
     if (edificios.length === 0) {
         tabla.innerHTML = `
             <tr>
-                <td colspan="12">No hay edificios registrados.</td>
+                <td colspan="13">No hay edificios registrados.</td>
             </tr>
         `;
         return;
@@ -752,6 +700,7 @@ function renderizarEdificios() {
 
     tabla.innerHTML = edificios.map(edificio => {
         const resumen = obtenerResumenEdificio(edificio);
+        const administradores = obtenerAdministradoresDeEdificio(db, edificio.id);
 
         return `
             <tr>
@@ -764,6 +713,7 @@ function renderizarEdificios() {
                 <td>${resumen.oficinas}</td>
                 <td>${resumen.estacionamientos}</td>
                 <td>${resumen.depositos}</td>
+                <td>${administradores.length > 0 ? administradores.map(a => a.nombre).join(", ") : "-"}</td>
                 <td>
                     <span class="badge ${edificio.activo ? "vacio" : "ocupado"}">
                         ${edificio.activo ? "Activo" : "Inactivo"}
@@ -786,6 +736,31 @@ function renderizarEdificios() {
             </tr>
         `;
     }).join("");
+}
+
+function obtenerEdificiosVisibles(db) {
+    const sesion = JSON.parse(localStorage.getItem("usuarioSesion"));
+
+    if (!sesion || sesion.rol === "superadmin") {
+        return db.edificios || [];
+    }
+
+    if (sesion.rol === "admin") {
+        const permitidos = (sesion.edificioIds || [sesion.edificioId]).filter(Boolean).map(String);
+
+        return (db.edificios || []).filter(edificio =>
+            permitidos.includes(String(edificio.id))
+        );
+    }
+
+    return [];
+}
+
+function obtenerAdministradoresDeEdificio(db, edificioId) {
+    return (db.usuarios || []).filter(usuario =>
+        usuario.rol === "admin" &&
+        (usuario.edificioIds || [usuario.edificioId]).map(String).includes(String(edificioId))
+    );
 }
 
 function obtenerResumenEdificio(edificio) {
@@ -820,29 +795,41 @@ function renderizarUnidadesGeneradas() {
 
     if (!tabla) return;
 
-    const unidades = db.unidadesGeneradas || [];
+    let unidades = db.unidadesGeneradas || [];
+    const edificiosVisibles = obtenerEdificiosVisibles(db).map(e => String(e.id));
+
+    if (edificiosVisibles.length > 0) {
+        unidades = unidades.filter(unidad =>
+            edificiosVisibles.includes(String(unidad.edificioId))
+        );
+    }
 
     if (unidades.length === 0) {
         tabla.innerHTML = `
             <tr>
-                <td colspan="4">No hay unidades generadas.</td>
+                <td colspan="5">No hay unidades generadas.</td>
             </tr>
         `;
         return;
     }
 
-    tabla.innerHTML = unidades.map(unidad => `
-        <tr>
-            <td>${unidad.codigo}</td>
-            <td>${capitalizar(unidad.tipo)}</td>
-            <td>${unidad.piso}</td>
-            <td>
-                <span class="badge vacio">
-                    Disponible
-                </span>
-            </td>
-        </tr>
-    `).join("");
+    tabla.innerHTML = unidades.map(unidad => {
+        const edificio = (db.edificios || []).find(e => String(e.id) === String(unidad.edificioId));
+
+        return `
+            <tr>
+                <td>${unidad.codigo}</td>
+                <td>${capitalizar(unidad.tipo)}</td>
+                <td>${unidad.piso}</td>
+                <td>${edificio ? edificio.nombre : "-"}</td>
+                <td>
+                    <span class="badge ${unidad.estado === "disponible" ? "vacio" : "ocupado"}">
+                        ${capitalizar(unidad.estado || "disponible")}
+                    </span>
+                </td>
+            </tr>
+        `;
+    }).join("");
 }
 
 function cargarEdificioParaEditar(id) {
@@ -891,6 +878,8 @@ function activarEdificio(id) {
     edificio.activo = true;
     db.configEdificio = crearConfigDesdeEdificio(edificio);
 
+    localStorage.setItem("edifika_edificio_activo", edificio.id);
+
     guardarTodo(db);
     renderizarEdificios();
 
@@ -919,6 +908,7 @@ function desactivarEdificio(id) {
 
 function crearConfigDesdeEdificio(edificio) {
     return {
+        edificioId: edificio.id,
         nombre: edificio.nombre,
         direccion: edificio.direccion,
         pisos: edificio.pisos,
@@ -933,6 +923,179 @@ function crearConfigDesdeEdificio(edificio) {
         depositosPorSotano: edificio.depositosPorSotano,
         configuracionAvanzada: edificio.configuracionAvanzada || []
     };
+}
+
+function configurarFormularioAdministrador() {
+    const form = document.getElementById("formAdministradorEdificio");
+
+    if (!form) return;
+
+    form.addEventListener("submit", event => {
+        event.preventDefault();
+
+        const id = document.getElementById("adminEdificioId").value;
+        const nombre = document.getElementById("nombreAdminEdificio").value.trim();
+        const correo = document.getElementById("correoAdminEdificio").value.trim().toLowerCase();
+        const clave = document.getElementById("claveAdminEdificio").value.trim();
+        const edificioIds = obtenerEdificiosSeleccionadosAdmin();
+
+        const datos = {
+            nombre,
+            correo,
+            clave,
+            edificioIds
+        };
+
+        const resultado = id
+            ? actualizarAdministradorEdificio(id, datos)
+            : crearAdministradorEdificio(datos);
+
+        if (!resultado.ok) {
+            alert(resultado.error);
+            return;
+        }
+
+        limpiarFormularioAdministrador();
+        renderizarAdministradoresEdificio();
+        renderizarEdificios();
+
+        alert(id ? "Administrador actualizado correctamente." : "Administrador creado correctamente.");
+    });
+}
+
+function cargarSelectEdificiosAdministradores() {
+    const db = obtenerTodo();
+    const select = document.getElementById("edificiosAsignadosAdmin");
+
+    if (!select) return;
+
+    const edificios = obtenerEdificiosVisibles(db);
+
+    select.innerHTML = "";
+
+    edificios.forEach(edificio => {
+        select.innerHTML += `
+            <option value="${edificio.id}">
+                ${edificio.nombre}
+            </option>
+        `;
+    });
+}
+
+function obtenerEdificiosSeleccionadosAdmin() {
+    const select = document.getElementById("edificiosAsignadosAdmin");
+
+    if (!select) return [];
+
+    return Array.from(select.selectedOptions).map(option => option.value);
+}
+
+function renderizarAdministradoresEdificio() {
+    const db = obtenerTodo();
+    const tabla = document.getElementById("tablaAdministradoresEdificio");
+
+    if (!tabla) return;
+
+    const edificiosVisibles = obtenerEdificiosVisibles(db).map(e => String(e.id));
+
+    let administradores = (db.usuarios || []).filter(usuario =>
+        usuario.rol === "admin"
+    );
+
+    if (edificiosVisibles.length > 0) {
+        administradores = administradores.filter(admin =>
+            (admin.edificioIds || [admin.edificioId]).some(id =>
+                edificiosVisibles.includes(String(id))
+            )
+        );
+    }
+
+    if (administradores.length === 0) {
+        tabla.innerHTML = `
+            <tr>
+                <td colspan="5">No hay administradores secundarios registrados.</td>
+            </tr>
+        `;
+        return;
+    }
+
+    tabla.innerHTML = administradores.map(admin => {
+        const edificios = (admin.edificioIds || [admin.edificioId])
+            .map(id => (db.edificios || []).find(e => String(e.id) === String(id))?.nombre)
+            .filter(Boolean)
+            .join(", ");
+
+        return `
+            <tr>
+                <td>${admin.nombre}</td>
+                <td>${admin.correo}</td>
+                <td>${edificios || "-"}</td>
+                <td>${formatearFecha(admin.fechaRegistro)}</td>
+                <td>
+                    <button class="btn btn-blue" onclick="cargarAdminParaEditar('${admin.id}')">
+                        Editar
+                    </button>
+
+                    <button class="btn btn-red" onclick="eliminarAdminEdificio('${admin.id}')">
+                        Eliminar
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join("");
+}
+
+function cargarAdminParaEditar(id) {
+    const db = obtenerTodo();
+
+    const admin = (db.usuarios || []).find(usuario =>
+        String(usuario.id) === String(id)
+    );
+
+    if (!admin) return;
+
+    document.getElementById("adminEdificioId").value = admin.id;
+    document.getElementById("nombreAdminEdificio").value = admin.nombre || "";
+    document.getElementById("correoAdminEdificio").value = admin.correo || "";
+    document.getElementById("claveAdminEdificio").value = admin.clave || "";
+
+    const select = document.getElementById("edificiosAsignadosAdmin");
+    const asignados = (admin.edificioIds || [admin.edificioId]).map(String);
+
+    Array.from(select.options).forEach(option => {
+        option.selected = asignados.includes(String(option.value));
+    });
+
+    window.scrollTo({
+        top: document.getElementById("seccionAdministradoresEdificio").offsetTop - 20,
+        behavior: "smooth"
+    });
+}
+
+function eliminarAdminEdificio(id) {
+    const confirmar = confirm("¿Deseas eliminar este administrador secundario?");
+
+    if (!confirmar) return;
+
+    const resultado = eliminarAdministradorEdificio(id);
+
+    if (!resultado.ok) {
+        alert(resultado.error);
+        return;
+    }
+
+    renderizarAdministradoresEdificio();
+    renderizarEdificios();
+
+    alert("Administrador eliminado correctamente.");
+}
+
+function limpiarFormularioAdministrador() {
+    const form = document.getElementById("formAdministradorEdificio");
+
+    if (form) form.reset();
+
+    document.getElementById("adminEdificioId").value = "";
 }
 
 function limpiarFormulario() {
@@ -970,6 +1133,11 @@ function limpiarFormulario() {
 
 function generarCodigoUnidad(piso, numero) {
     return `${piso}${String(numero).padStart(2, "0")}`;
+}
+
+function obtenerSesionId() {
+    const sesion = JSON.parse(localStorage.getItem("usuarioSesion"));
+    return sesion?.id || "sistema";
 }
 
 function formatearFecha(fechaISO) {

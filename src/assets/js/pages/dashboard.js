@@ -6,6 +6,11 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function protegerPaginaAdmin() {
+    if (typeof protegerPaginaAdminData === "function") {
+        protegerPaginaAdminData();
+        return;
+    }
+
     const sesion = JSON.parse(localStorage.getItem("usuarioSesion"));
 
     if (!sesion) {
@@ -13,7 +18,7 @@ function protegerPaginaAdmin() {
         return;
     }
 
-    if (sesion.rol !== "admin") {
+    if (sesion.rol !== "admin" && sesion.rol !== "superadmin") {
         alert("No tienes permisos para acceder a esta página.");
         window.location.href = "../residente/inicio.html";
     }
@@ -28,12 +33,61 @@ function cargarDashboard() {
     renderizarUnidades(db);
 }
 
+function obtenerEdificiosPermitidosDashboard() {
+    if (typeof obtenerEdificiosPermitidosSesion === "function") {
+        return obtenerEdificiosPermitidosSesion();
+    }
+
+    const sesion = JSON.parse(localStorage.getItem("usuarioSesion"));
+    const db = obtenerTodo();
+
+    if (!sesion) return [];
+
+    if (sesion.rol === "superadmin") {
+        return (db.edificios || []).map(edificio => String(edificio.id));
+    }
+
+    if (sesion.rol === "admin") {
+        return (sesion.edificioIds || [sesion.edificioId])
+            .filter(Boolean)
+            .map(String);
+    }
+
+    return [];
+}
+
+function obtenerUnidadesPermitidasDashboard(db) {
+    const permitidos = obtenerEdificiosPermitidosDashboard();
+
+    if (permitidos.length === 0) {
+        return db.departamentos || [];
+    }
+
+    return (db.departamentos || []).filter(unidad =>
+        permitidos.includes(String(unidad.edificioId || ""))
+    );
+}
+
 function cargarTituloEdificio(db) {
     const titulo = document.getElementById("tituloEdificio");
 
     if (!titulo) return;
 
-    titulo.textContent = db.configEdificio?.nombre || "Dashboard Administrador";
+    const sesion = JSON.parse(localStorage.getItem("usuarioSesion"));
+    const permitidos = obtenerEdificiosPermitidosDashboard();
+
+    if (sesion?.rol === "superadmin") {
+        titulo.textContent = "Dashboard General - Superadministrador";
+        return;
+    }
+
+    const edificios = (db.edificios || [])
+        .filter(edificio => permitidos.includes(String(edificio.id)))
+        .map(edificio => edificio.nombre);
+
+    titulo.textContent = edificios.length > 0
+        ? `Dashboard - ${edificios.join(", ")}`
+        : "Dashboard Administrador";
 }
 
 function configurarFiltros() {
@@ -54,23 +108,27 @@ function cargarFiltroPisos(db) {
 
     if (!filtroPiso) return;
 
+    const unidades = obtenerUnidadesPermitidasDashboard(db);
+
+    const ubicaciones = [...new Set(
+        unidades
+            .map(unidad => String(unidad.piso || ""))
+            .filter(Boolean)
+    )].sort((a, b) => ordenarPiso(a) - ordenarPiso(b));
+
     filtroPiso.innerHTML = `<option value="">Todos</option>`;
 
-    const config = db.configEdificio || {};
-    const sotanos = Number(config.sotanos || 0);
-    const pisos = Number(config.pisos || 0);
-
-    for (let i = 1; i <= sotanos; i++) {
-        filtroPiso.innerHTML += `<option value="S${i}">Sótano ${i}</option>`;
-    }
-
-    for (let i = 1; i <= pisos; i++) {
-        filtroPiso.innerHTML += `<option value="${i}">Piso ${i}</option>`;
-    }
+    ubicaciones.forEach(piso => {
+        filtroPiso.innerHTML += `
+            <option value="${piso}">
+                ${formatearPiso(piso)}
+            </option>
+        `;
+    });
 }
 
 function actualizarEstadisticas(db) {
-    const unidades = db.departamentos || [];
+    const unidades = obtenerUnidadesPermitidasDashboard(db);
 
     const total = unidades.length;
     const departamentos = unidades.filter(u => normalizarTipoUnidad(u.tipo) === "departamento").length;
@@ -100,7 +158,7 @@ function renderizarUnidades(db) {
 
     if (!tabla) return;
 
-    let unidades = [...(db.departamentos || [])];
+    let unidades = [...obtenerUnidadesPermitidasDashboard(db)];
 
     const busqueda = document.getElementById("filtroBusqueda")?.value.trim().toUpperCase() || "";
     const piso = document.getElementById("filtroPiso")?.value || "";
@@ -176,12 +234,12 @@ function renderizarUnidades(db) {
 function verDetalleUnidad(id) {
     const db = obtenerTodo();
 
-    const unidad = (db.departamentos || []).find(u =>
+    const unidad = obtenerUnidadesPermitidasDashboard(db).find(u =>
         String(u.id) === String(id)
     );
 
     if (!unidad) {
-        alert("Unidad no encontrada.");
+        alert("Unidad no encontrada o no pertenece a tu edificio asignado.");
         return;
     }
 
@@ -191,8 +249,12 @@ function verDetalleUnidad(id) {
     if (!detalle || !modal) return;
 
     const autorizados = unidad.autorizados || [];
+    const edificio = (db.edificios || []).find(e =>
+        String(e.id) === String(unidad.edificioId)
+    );
 
     detalle.innerHTML = `
+        <p><strong>Edificio:</strong> ${edificio ? edificio.nombre : "-"}</p>
         <p><strong>Unidad:</strong> ${unidad.numero}</p>
         <p><strong>Ubicación:</strong> ${formatearPiso(unidad.piso)}</p>
         <p><strong>Tipo:</strong> ${formatearTipoUnidad(unidad.tipo)}</p>

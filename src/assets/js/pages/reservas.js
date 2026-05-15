@@ -28,6 +28,57 @@ function cargarPaginaReservas() {
     renderizarMisReservas(db);
 }
 
+function obtenerUnidadesVinculadasSesion(sesion) {
+    return sesion?.unidadesAutorizadas || [];
+}
+
+function obtenerIdsUnidadesVinculadas(sesion) {
+    const ids = obtenerUnidadesVinculadasSesion(sesion)
+        .map(unidad => String(unidad.unidadId))
+        .filter(Boolean);
+
+    if (sesion?.departamentoId) {
+        ids.push(String(sesion.departamentoId));
+    }
+
+    return [...new Set(ids)];
+}
+
+function obtenerEdificiosVinculadosSesion(sesion) {
+    const ids = obtenerUnidadesVinculadasSesion(sesion)
+        .map(unidad => unidad.edificioId)
+        .filter(Boolean)
+        .map(String);
+
+    if (sesion?.edificioId) {
+        ids.push(String(sesion.edificioId));
+    }
+
+    return [...new Set(ids)];
+}
+
+function obtenerAreasPermitidasResidente(db, sesion) {
+    const edificiosPermitidos = obtenerEdificiosVinculadosSesion(sesion);
+
+    return (db.areasComunes || []).filter(area => {
+        const perteneceEdificio =
+            edificiosPermitidos.length === 0 ||
+            edificiosPermitidos.includes(String(area.edificioId || ""));
+
+        return perteneceEdificio &&
+            normalizarEstadoArea(area.estado) === "disponible";
+    });
+}
+
+function obtenerReservasPermitidasResidente(db, sesion) {
+    const edificiosPermitidos = obtenerEdificiosVinculadosSesion(sesion);
+
+    return (db.reservas || []).filter(reserva =>
+        !reserva.edificioId ||
+        edificiosPermitidos.includes(String(reserva.edificioId))
+    );
+}
+
 function configurarFormularioReserva() {
     const form = document.getElementById("formReservaResidente");
 
@@ -36,7 +87,9 @@ function configurarFormularioReserva() {
     form.addEventListener("submit", event => {
         event.preventDefault();
 
+        const db = obtenerTodo();
         const sesion = JSON.parse(localStorage.getItem("usuarioSesion"));
+
         const reservaId = document.getElementById("reservaId")?.value || "";
         const areaId = document.getElementById("areaReservaResidente").value;
         const fecha = document.getElementById("fechaReservaResidente").value;
@@ -51,18 +104,32 @@ function configurarFormularioReserva() {
             return;
         }
 
-        if (!sesion.departamentoId) {
-            alert("Tu usuario no tiene una unidad vinculada.");
+        const area = obtenerAreasPermitidasResidente(db, sesion).find(a =>
+            String(a.id) === String(areaId)
+        );
+
+        if (!area) {
+            alert("El área seleccionada no pertenece a tus edificios vinculados o no está disponible.");
             return;
         }
 
+        const unidadParaReserva = obtenerUnidadValidaParaReserva(db, sesion, area.edificioId);
+
+        if (!unidadParaReserva) {
+            alert("No tienes una unidad vinculada en el edificio de esta área.");
+            return;
+        }
+
+        const datosReserva = {
+            areaId,
+            departamentoId: unidadParaReserva.id,
+            edificioId: area.edificioId,
+            fecha
+        };
+
         const resultado = reservaId
-            ? editarReservaArea(reservaId, { areaId, fecha })
-            : agregarReservaArea({
-                areaId,
-                departamentoId: sesion.departamentoId,
-                fecha
-            });
+            ? editarReservaArea(reservaId, datosReserva)
+            : agregarReservaArea(datosReserva);
 
         if (!resultado.ok) {
             alert(resultado.error);
@@ -74,6 +141,21 @@ function configurarFormularioReserva() {
 
         alert(reservaId ? "Reserva actualizada correctamente." : "Reserva registrada correctamente.");
     });
+}
+
+function obtenerUnidadValidaParaReserva(db, sesion, edificioId) {
+    const idsUnidades = obtenerIdsUnidadesVinculadas(sesion);
+
+    const unidades = (db.departamentos || []).filter(unidad =>
+        idsUnidades.includes(String(unidad.id)) &&
+        String(unidad.edificioId || "") === String(edificioId || "")
+    );
+
+    const departamento = unidades.find(unidad =>
+        normalizarTipoUnidad(unidad.tipo) === "departamento"
+    );
+
+    return departamento || unidades[0] || null;
 }
 
 function configurarFiltroPorArea() {
@@ -91,11 +173,10 @@ function cargarAreasDisponibles(db) {
 
     if (!select) return;
 
+    const sesion = JSON.parse(localStorage.getItem("usuarioSesion"));
     const valorActual = select.value;
 
-    const areasDisponibles = (db.areasComunes || []).filter(area =>
-        normalizarEstadoArea(area.estado) === "disponible"
-    );
+    const areasDisponibles = obtenerAreasPermitidasResidente(db, sesion);
 
     select.innerHTML = `<option value="">Seleccione un área</option>`;
 
@@ -118,8 +199,10 @@ function renderizarReservasExistentes(db) {
 
     if (!tabla) return;
 
-    let reservas = db.reservas || [];
-    const areas = db.areasComunes || [];
+    const sesion = JSON.parse(localStorage.getItem("usuarioSesion"));
+
+    let reservas = obtenerReservasPermitidasResidente(db, sesion);
+    const areas = obtenerAreasPermitidasResidente(db, sesion);
 
     if (areaSeleccionada) {
         reservas = reservas.filter(reserva =>
@@ -197,8 +280,9 @@ function renderizarMisReservas(db) {
 
 function cargarReservaParaEditar(id) {
     const db = obtenerTodo();
+    const sesion = JSON.parse(localStorage.getItem("usuarioSesion"));
 
-    const reserva = (db.reservas || []).find(r =>
+    const reserva = obtenerReservasDelResidente(db, sesion).find(r =>
         String(r.id) === String(id)
     );
 
@@ -218,6 +302,18 @@ function cancelarMiReserva(id) {
     const confirmar = confirm("¿Deseas cancelar esta reserva? La fecha quedará liberada.");
 
     if (!confirmar) return;
+
+    const db = obtenerTodo();
+    const sesion = JSON.parse(localStorage.getItem("usuarioSesion"));
+
+    const reserva = obtenerReservasDelResidente(db, sesion).find(r =>
+        String(r.id) === String(id)
+    );
+
+    if (!reserva) {
+        alert("Reserva no encontrada o no pertenece a tus unidades vinculadas.");
+        return;
+    }
 
     const resultado = eliminarReservaArea(id);
 
@@ -241,9 +337,18 @@ function limpiarFormularioReserva() {
 }
 
 function obtenerReservasDelResidente(db, sesion) {
-    return (db.reservas || []).filter(reserva =>
-        String(reserva.departamentoId) === String(sesion?.departamentoId)
-    );
+    const idsUnidades = obtenerIdsUnidadesVinculadas(sesion);
+    const edificiosPermitidos = obtenerEdificiosVinculadosSesion(sesion);
+
+    return (db.reservas || []).filter(reserva => {
+        const perteneceUnidad = idsUnidades.includes(String(reserva.departamentoId));
+
+        const perteneceEdificio =
+            !reserva.edificioId ||
+            edificiosPermitidos.includes(String(reserva.edificioId));
+
+        return perteneceUnidad && perteneceEdificio;
+    });
 }
 
 function configurarFechaMinima() {
@@ -275,4 +380,14 @@ function normalizarEstadoArea(estado) {
     if (valor === "mantenimiento") return "no_disponible";
 
     return "disponible";
+}
+
+function normalizarTipoUnidad(tipo) {
+    const valor = String(tipo || "").toLowerCase().trim();
+
+    if (valor === "estacionamiento") return "estacionamiento";
+    if (valor === "deposito" || valor === "depósito") return "deposito";
+    if (valor === "oficina" || valor === "local") return "oficina";
+
+    return "departamento";
 }
