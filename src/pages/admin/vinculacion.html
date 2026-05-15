@@ -9,79 +9,98 @@
 </head>
 <body>
 
-    <nav class="sidebar">
-        <h2>EDIFIKA</h2>
+<nav class="sidebar">
+    <h2>EDIFIKA</h2>
 
-        <div class="sidebar-menu">
-            <a href="dashboard.html">🏠 Dashboard</a>
-            <a href="departamentos.html">🏢 Unidades</a>
-            <a href="vinculacion.html" class="active">📩 Invitaciones</a>
-            <a href="areas.html">🌳 Áreas Comunes</a>
-            <a href="config.html">⚙️ Configuración</a>
-            <a href="../residente/inicio.html">🏠 Vista Usuario</a>
-            <a href="../../../index.html">🚪 Cerrar sesión</a>
-        </div>
-    </nav>
+    <div class="sidebar-menu">
+        <a href="dashboard.html">🏠 Dashboard</a>
+        <a href="departamentos.html">🏢 Unidades</a>
+        <a href="vinculacion.html" class="active">📩 Invitaciones</a>
+        <a href="areas.html">🌳 Áreas Comunes</a>
+        <a href="config.html">⚙️ Configuración</a>
+        <a href="../residente/inicio.html">🏠 Vista Usuario</a>
+        <a href="../../../index.html">🚪 Cerrar sesión</a>
+    </div>
+</nav>
 
-    <main>
-        <h1>Invitaciones / Vinculación</h1>
+<main>
+    <h1>Invitaciones / Vinculación</h1>
 
-        <section class="card">
-            <h2>Registrar invitación</h2>
+    <section class="card">
+        <h2>Registrar invitación</h2>
 
-            <form id="formInvitacion">
-                <div class="form-group-container">
-                    <div class="group">
-                        <label for="correo">Correo del residente</label>
-                        <input type="email" id="correo" required>
-                    </div>
+        <p style="font-size: 0.85rem; color: #666; margin-bottom: 15px;">
+            Puedes vincular residentes a departamentos, oficinas, estacionamientos o depósitos.
+            Para departamentos se permite propietario e inquilino. Para oficinas, estacionamientos y depósitos se registra como usuario autorizado.
+        </p>
 
-                    <div class="group">
-                        <label for="unidad">Unidad</label>
-                        <select id="unidad" required>
-                            <option value="">Seleccione una unidad</option>
-                        </select>
-                    </div>
-
-                    <div class="group">
-                        <label for="tipoResidente">Tipo de residente</label>
-                        <select id="tipoResidente" required>
-                            <option value="propietario">Propietario</option>
-                            <option value="inquilino">Inquilino</option>
-                        </select>
-                    </div>
+        <form id="formInvitacion">
+            <div class="form-group-container">
+                <div class="group">
+                    <label for="correo">Correo del usuario</label>
+                    <input type="email" id="correo" required>
                 </div>
 
-                <button type="submit" class="btn btn-blue" style="margin-top: 15px;">
-                    Generar invitación
-                </button>
-            </form>
-        </section>
+                <div class="group">
+                    <label for="tipoUnidadFiltro">Tipo de unidad</label>
+                    <select id="tipoUnidadFiltro">
+                        <option value="">Todos</option>
+                        <option value="departamento">Departamento</option>
+                        <option value="oficina">Oficina / Local</option>
+                        <option value="estacionamiento">Estacionamiento</option>
+                        <option value="deposito">Depósito</option>
+                    </select>
+                </div>
 
-        <section class="card">
-            <h2>Invitaciones registradas</h2>
+                <div class="group">
+                    <label for="unidad">Unidad</label>
+                    <select id="unidad" required>
+                        <option value="">Seleccione una unidad</option>
+                    </select>
+                </div>
 
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Correo</th>
-                            <th>Unidad</th>
-                            <th>Tipo</th>
-                            <th>Estado</th>
-                            <th>Código</th>
-                            <th>Acción</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tablaInvitaciones">
-                        <!-- Se llena con JS -->
-                    </tbody>
-                </table>
+                <div class="group">
+                    <label for="tipoResidente">Tipo de vinculación</label>
+                    <select id="tipoResidente" required>
+                        <option value="propietario">Propietario</option>
+                        <option value="inquilino">Inquilino</option>
+                        <option value="autorizado">Usuario autorizado</option>
+                    </select>
+                </div>
             </div>
-        </section>
-    </main>
 
-    <script src="../../assets/js/core/data.js"></script>
-    <script src="../../assets/js/pages/vinculacion.js"></script>
+            <button type="submit" class="btn btn-blue" style="margin-top: 15px;">
+                Generar invitación
+            </button>
+        </form>
+    </section>
+
+    <section class="card">
+        <h2>Invitaciones registradas</h2>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Correo</th>
+                        <th>Unidad</th>
+                        <th>Tipo unidad</th>
+                        <th>Vinculación</th>
+                        <th>Estado</th>
+                        <th>Código</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+
+                <tbody id="tablaInvitaciones">
+                    <!-- Se llena con JS -->
+                </tbody>
+            </table>
+        </div>
+    </section>
+</main>
+
+<script src="../../assets/js/core/data.js"></script>
+<script src="../../assets/js/pages/vinculacion.js"></script>
 </body>
 </html>

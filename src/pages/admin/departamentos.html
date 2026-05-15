@@ -10,6 +10,7 @@
 
 <nav class="sidebar">
     <h2>EDIFIKA</h2>
+
     <div class="sidebar-menu">
         <a href="dashboard.html">🏠 Dashboard</a>
         <a href="departamentos.html" class="active">🏢 Unidades</a>
@@ -29,14 +30,17 @@
             <span class="stat-number" id="totalUnidades">0</span>
             <label>Total unidades</label>
         </div>
+
         <div class="card">
             <span class="stat-number" id="unidadesDisponibles">0</span>
             <label>Disponibles</label>
         </div>
+
         <div class="card">
             <span class="stat-number" id="unidadesOcupadas">0</span>
             <label>Ocupadas</label>
         </div>
+
         <div class="card">
             <span class="stat-number" id="unidadesMantenimiento">0</span>
             <label>Mantenimiento</label>
@@ -46,33 +50,14 @@
     <section class="card">
         <h2>Registrar / Editar Unidad</h2>
 
-        <p style="font-size: 0.85rem; color: #666; margin-bottom: 15px;">
-            Formato requerido: <strong>Piso-Letra</strong>. Ejemplo: 1-A, 2-B.
+        <p id="ayudaFormatoUnidad" style="font-size: 0.85rem; color: #666; margin-bottom: 15px;">
+            Selecciona un tipo de unidad para ver el formato requerido.
         </p>
 
         <form id="formDepartamento">
             <input type="hidden" id="departamentoId">
 
             <div class="form-group-container">
-                <div class="group">
-                    <label for="numeroDepartamento">N° Unidad</label>
-                    <input 
-                        type="text" 
-                        id="numeroDepartamento" 
-                        placeholder="Ej: 1-A" 
-                        required
-                        autocomplete="off"
-                        style="text-transform: uppercase;"
-                    >
-                </div>
-
-                <div class="group">
-                    <label for="pisoDepartamento">Piso</label>
-                    <select id="pisoDepartamento" required>
-                        <option value="">Cargando pisos...</option>
-                    </select>
-                </div>
-
                 <div class="group">
                     <label for="tipoUnidad">Tipo de unidad</label>
                     <select id="tipoUnidad" required>
@@ -81,6 +66,25 @@
                         <option value="deposito">Depósito</option>
                         <option value="oficina">Oficina / Local</option>
                     </select>
+                </div>
+
+                <div class="group">
+                    <label for="pisoDepartamento">Ubicación / Piso</label>
+                    <select id="pisoDepartamento" required>
+                        <option value="">Seleccione ubicación...</option>
+                    </select>
+                </div>
+
+                <div class="group">
+                    <label for="numeroDepartamento">Código de unidad</label>
+                    <input
+                        type="text"
+                        id="numeroDepartamento"
+                        placeholder="Ej: 1-A"
+                        required
+                        autocomplete="off"
+                        style="text-transform: uppercase;"
+                    >
                 </div>
 
                 <div class="group">
@@ -97,10 +101,10 @@
             <div class="form-group-container" style="margin-top: 10px;">
                 <div class="group">
                     <label for="observacionesUnidad">Observaciones</label>
-                    <input 
-                        type="text" 
-                        id="observacionesUnidad" 
-                        placeholder="Ej: Vista interior, cerca al ascensor, mantenimiento pendiente"
+                    <input
+                        type="text"
+                        id="observacionesUnidad"
+                        placeholder="Ej: Cerca al ascensor, zona de sótano, uso administrativo"
                     >
                 </div>
 
@@ -125,11 +129,11 @@
         <div class="form-group-container">
             <div class="group">
                 <label for="buscarUnidad">Buscar unidad</label>
-                <input type="text" id="buscarUnidad" placeholder="Ej: 1-A">
+                <input type="text" id="buscarUnidad" placeholder="Ej: 1-A, E-01, D-01, OF-101">
             </div>
 
             <div class="group">
-                <label for="filtroPisoUnidad">Piso</label>
+                <label for="filtroPisoUnidad">Ubicación / Piso</label>
                 <select id="filtroPisoUnidad">
                     <option value="">Todos</option>
                 </select>
@@ -139,10 +143,6 @@
                 <label for="filtroTipoUnidad">Tipo</label>
                 <select id="filtroTipoUnidad">
                     <option value="">Todos</option>
-                    <option value="departamento">Departamento</option>
-                    <option value="estacionamiento">Estacionamiento</option>
-                    <option value="deposito">Depósito</option>
-                    <option value="oficina">Oficina / Local</option>
                 </select>
             </div>
 
@@ -167,7 +167,7 @@
                 <thead>
                     <tr>
                         <th>Unidad</th>
-                        <th>Piso</th>
+                        <th>Ubicación</th>
                         <th>Tipo</th>
                         <th>Estado</th>
                         <th>Observaciones</th>
@@ -175,7 +175,9 @@
                         <th>Acciones</th>
                     </tr>
                 </thead>
-                <tbody id="listaDepartamentos"></tbody>
+                <tbody id="listaDepartamentos">
+                    <!-- Se llena con JS -->
+                </tbody>
             </table>
         </div>
     </section>

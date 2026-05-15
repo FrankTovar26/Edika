@@ -5,19 +5,26 @@
 function obtenerTodo() {
     const data = localStorage.getItem("edifika_db");
 
-    const db = data
-        ? JSON.parse(data)
-        : {
-              configEdificio: null,
-              departamentos: [],
-              gastosMensuales: [],
-              areasComunes: [],
-              reservas: []
-          };
+    const db = data ? JSON.parse(data) : {
+        configEdificio: null,
+        edificios: [],
+        departamentos: [],
+        usuarios: [],
+        gastosMensuales: [],
+        areasComunes: [],
+        reservas: []
+    };
 
+    if (!db.edificios) db.edificios = [];
     if (!db.departamentos) db.departamentos = [];
+    if (!db.usuarios) db.usuarios = [];
+    if (!db.gastosMensuales) db.gastosMensuales = [];
     if (!db.areasComunes) db.areasComunes = [];
     if (!db.reservas) db.reservas = [];
+
+    db.departamentos.forEach(unidad => {
+        if (!unidad.autorizados) unidad.autorizados = [];
+    });
 
     return db;
 }
@@ -34,7 +41,13 @@ function guardarConfiguracionEdificio(config) {
     const db = obtenerTodo();
 
     db.configEdificio = {
-        ...config,
+        nombre: config.nombre,
+        direccion: config.direccion,
+        pisos: config.pisos,
+        sotanos: config.sotanos || 0,
+        tieneOficinas: config.tieneOficinas || "no",
+        tieneEstacionamientos: config.tieneEstacionamientos || "si",
+        tieneDepositos: config.tieneDepositos || "si",
         fechaRegistro: new Date().toISOString()
     };
 
@@ -46,14 +59,18 @@ function guardarConfiguracionEdificio(config) {
 function validarCambioPisos(nuevoMaximo) {
     const db = obtenerTodo();
 
-    const deptoInvalido = db.departamentos.find(
-        d => Number(d.piso) > Number(nuevoMaximo)
-    );
+    const unidadInvalida = db.departamentos.find(unidad => {
+        const piso = String(unidad.piso);
 
-    if (deptoInvalido) {
+        if (piso.startsWith("S")) return false;
+
+        return Number(piso) > Number(nuevoMaximo);
+    });
+
+    if (unidadInvalida) {
         return {
             ok: false,
-            error: `No puedes reducir los pisos. Existe una unidad en el piso ${deptoInvalido.piso}.`
+            error: `No puedes reducir los pisos. Existe una unidad en el piso ${unidadInvalida.piso}.`
         };
     }
 
@@ -61,231 +78,473 @@ function validarCambioPisos(nuevoMaximo) {
 }
 
 // ==========================================
-// DEPARTAMENTOS / UNIDADES
+// UNIDADES
 // ==========================================
 
-function agregarDepartamento(depto) {
+function agregarDepartamento(unidad) {
     const db = obtenerTodo();
 
-    if (!db.configEdificio || !db.configEdificio.pisos) {
+    if (!db.configEdificio) {
         return {
             ok: false,
-            error: "Primero debes configurar el edificio."
+            error: "Primero debes configurar un edificio activo."
         };
     }
 
-    const numero = depto.numero.trim().toUpperCase();
+    const datos = normalizarDatosUnidad(unidad);
+    const validacion = validarUnidad(datos, db);
 
-    const formatoValido = /^[0-9]+-[A-Z0-9]+$/;
+    if (!validacion.ok) return validacion;
 
-    if (!formatoValido.test(numero)) {
-        return {
-            ok: false,
-            error: "Formato inválido. Ejemplo válido: 1-A"
-        };
-    }
-
-    const existe = db.departamentos.find(
-        d => d.numero.toUpperCase() === numero
+    const existe = db.departamentos.some(item =>
+        String(item.numero).toUpperCase() === datos.numero
     );
 
     if (existe) {
         return {
             ok: false,
-            error: "La unidad ya existe."
+            error: "Ya existe una unidad con ese código."
         };
     }
 
-    const pisoExtraido = Number(numero.split("-")[0]);
-
-    if (pisoExtraido !== Number(depto.piso)) {
-        return {
-            ok: false,
-            error: "El piso del número no coincide con el piso seleccionado."
-        };
-    }
-
-    const nuevoDepartamento = {
+    const nuevaUnidad = {
         id: Date.now().toString(),
-        numero,
-        piso: depto.piso,
-        tipo: depto.tipo || "departamento",
-        estado: depto.estado || "disponible",
-        observaciones: depto.observaciones || "",
+        numero: datos.numero,
+        piso: datos.piso,
+        tipo: datos.tipo,
+        estado: datos.estado,
+        observaciones: datos.observaciones,
         saldo: 0,
 
         emailPropietario: null,
         emailInquilino: null,
-
         estadoInvitacion: null,
         estadoInquilino: null,
+        codigoPropietario: null,
+        codigoInquilino: null,
+
+        nombreReal: null,
+        nombreInquilino: null,
+        dniPropietario: null,
+        dniInquilino: null,
+        password: null,
+        passwordInquilino: null,
+
+        autorizados: [],
 
         fechaRegistro: new Date().toISOString()
     };
 
-    db.departamentos.push(nuevoDepartamento);
-
+    db.departamentos.push(nuevaUnidad);
     guardarTodo(db);
 
-    return { ok: true };
+    return {
+        ok: true,
+        departamento: nuevaUnidad
+    };
 }
 
-function editarDepartamento(id, datos) {
+function editarDepartamento(id, unidad) {
     const db = obtenerTodo();
 
-    const departamento = db.departamentos.find(
-        d => String(d.id) === String(id)
+    const existente = db.departamentos.find(item =>
+        String(item.id) === String(id)
     );
 
-    if (!departamento) {
+    if (!existente) {
         return {
             ok: false,
             error: "Unidad no encontrada."
         };
     }
 
-    const numero = datos.numero.trim().toUpperCase();
+    const datos = normalizarDatosUnidad(unidad);
+    const validacion = validarUnidad(datos, db);
 
-    const existeDuplicado = db.departamentos.find(
-        d =>
-            String(d.id) !== String(id) &&
-            d.numero.toUpperCase() === numero
+    if (!validacion.ok) return validacion;
+
+    const duplicado = db.departamentos.some(item =>
+        String(item.id) !== String(id) &&
+        String(item.numero).toUpperCase() === datos.numero
     );
 
-    if (existeDuplicado) {
+    if (duplicado) {
         return {
             ok: false,
-            error: "Ya existe otra unidad con ese número."
+            error: "Ya existe otra unidad con ese código."
         };
     }
 
-    departamento.numero = numero;
-    departamento.piso = datos.piso;
-    departamento.tipo = datos.tipo || "departamento";
-    departamento.estado = datos.estado || "disponible";
-    departamento.observaciones = datos.observaciones || "";
+    existente.numero = datos.numero;
+    existente.piso = datos.piso;
+    existente.tipo = datos.tipo;
+    existente.estado = datos.estado;
+    existente.observaciones = datos.observaciones;
+
+    if (!existente.autorizados) existente.autorizados = [];
+    if (!existente.fechaRegistro) existente.fechaRegistro = new Date().toISOString();
 
     guardarTodo(db);
 
-    return { ok: true };
+    return {
+        ok: true,
+        departamento: existente
+    };
 }
 
 function eliminarDepartamento(id) {
     const db = obtenerTodo();
 
-    const departamento = db.departamentos.find(
-        d => String(d.id) === String(id)
+    const unidad = db.departamentos.find(item =>
+        String(item.id) === String(id)
     );
 
-    if (!departamento) {
+    if (!unidad) {
         return {
             ok: false,
             error: "Unidad no encontrada."
         };
     }
 
-    if (
-        departamento.emailPropietario ||
-        departamento.emailInquilino
-    ) {
+    if (unidad.emailPropietario || unidad.emailInquilino || (unidad.autorizados || []).length > 0) {
         return {
             ok: false,
-            error: "No puedes eliminar una unidad vinculada."
+            error: "No puedes eliminar una unidad con vinculaciones activas."
         };
     }
 
-    db.departamentos = db.departamentos.filter(
-        d => String(d.id) !== String(id)
+    const tieneReservas = db.reservas.some(reserva =>
+        String(reserva.departamentoId) === String(id)
+    );
+
+    if (tieneReservas) {
+        return {
+            ok: false,
+            error: "No puedes eliminar una unidad con reservas registradas."
+        };
+    }
+
+    db.departamentos = db.departamentos.filter(item =>
+        String(item.id) !== String(id)
     );
 
     guardarTodo(db);
 
     return { ok: true };
+}
+
+function normalizarDatosUnidad(unidad) {
+    return {
+        numero: String(unidad.numero || "").trim().toUpperCase(),
+        piso: String(unidad.piso || "").trim(),
+        tipo: normalizarTipoUnidadData(unidad.tipo),
+        estado: normalizarEstadoUnidadData(unidad.estado),
+        observaciones: String(unidad.observaciones || "").trim()
+    };
+}
+
+function validarUnidad(datos, db) {
+    if (!datos.numero || !datos.piso || !datos.tipo) {
+        return {
+            ok: false,
+            error: "Completa todos los datos de la unidad."
+        };
+    }
+
+    const config = db.configEdificio;
+
+    if (!config) {
+        return {
+            ok: false,
+            error: "No existe un edificio activo configurado."
+        };
+    }
+
+    if (!tipoPermitido(datos.tipo, config)) {
+        return {
+            ok: false,
+            error: "Este tipo de unidad no está habilitado en la configuración del edificio."
+        };
+    }
+
+    if (!ubicacionPermitida(datos.tipo, datos.piso, config)) {
+        return {
+            ok: false,
+            error: "La ubicación seleccionada no corresponde al tipo de unidad."
+        };
+    }
+
+    return validarFormatoUnidad(datos.numero, datos.tipo, datos.piso);
+}
+
+function tipoPermitido(tipo, config) {
+    if (tipo === "departamento") return true;
+    if (tipo === "estacionamiento") return config.tieneEstacionamientos === "si";
+    if (tipo === "deposito") return config.tieneDepositos === "si";
+    if (tipo === "oficina") return config.tieneOficinas === "si";
+
+    return false;
+}
+
+function ubicacionPermitida(tipo, piso, config) {
+    const valor = String(piso);
+    const esSotano = valor.startsWith("S");
+
+    const sotanos = Number(config.sotanos || 0);
+    const pisos = Number(config.pisos || 0);
+
+    if (esSotano) {
+        const numeroSotano = Number(valor.replace("S", ""));
+        if (numeroSotano < 1 || numeroSotano > sotanos) return false;
+    } else {
+        const numeroPiso = Number(valor);
+        if (numeroPiso < 1 || numeroPiso > pisos) return false;
+    }
+
+    if (tipo === "departamento") return !esSotano;
+    if (tipo === "oficina") return !esSotano;
+    if (tipo === "estacionamiento") return sotanos > 0 ? esSotano : !esSotano;
+    if (tipo === "deposito") return sotanos > 0 ? esSotano : !esSotano;
+
+    return false;
+}
+
+function validarFormatoUnidad(numero, tipo, piso) {
+    if (tipo === "departamento") {
+        if (!/^[0-9]+-[A-Z0-9]+$/.test(numero)) {
+            return {
+                ok: false,
+                error: "Formato inválido para departamento. Ejemplo: 1-A."
+            };
+        }
+
+        const pisoCodigo = numero.split("-")[0];
+
+        if (String(pisoCodigo) !== String(piso)) {
+            return {
+                ok: false,
+                error: "El piso del código no coincide con el piso seleccionado."
+            };
+        }
+    }
+
+    if (tipo === "estacionamiento" && !/^E-[0-9]+$/.test(numero)) {
+        return {
+            ok: false,
+            error: "Formato inválido para estacionamiento. Ejemplo: E-01."
+        };
+    }
+
+    if (tipo === "deposito" && !/^D-[0-9]+$/.test(numero)) {
+        return {
+            ok: false,
+            error: "Formato inválido para depósito. Ejemplo: D-01."
+        };
+    }
+
+    if (tipo === "oficina") {
+        if (!/^OF-[0-9]+$/.test(numero)) {
+            return {
+                ok: false,
+                error: "Formato inválido para oficina/local. Ejemplo: OF-101."
+            };
+        }
+
+        const numeroOficina = numero.replace("OF-", "");
+        const pisoCodigo = numeroOficina.charAt(0);
+
+        if (String(pisoCodigo) !== String(piso)) {
+            return {
+                ok: false,
+                error: "El código de oficina debe iniciar con el piso seleccionado. Ejemplo: Piso 2 → OF-201."
+            };
+        }
+    }
+
+    return { ok: true };
+}
+
+function normalizarTipoUnidadData(tipo) {
+    const valor = String(tipo || "").toLowerCase().trim();
+
+    if (valor === "estacionamiento") return "estacionamiento";
+    if (valor === "deposito" || valor === "depósito") return "deposito";
+    if (valor === "oficina" || valor === "local") return "oficina";
+
+    return "departamento";
+}
+
+function normalizarEstadoUnidadData(estado) {
+    const valor = String(estado || "").toLowerCase().trim();
+
+    if (valor === "ocupado" || valor === "ocupada") return "ocupada";
+    if (valor === "mantenimiento" || valor === "en mantenimiento") return "mantenimiento";
+    if (valor === "inactiva" || valor === "inactivo") return "inactiva";
+
+    return "disponible";
 }
 
 // ==========================================
 // VINCULACIONES
 // ==========================================
 
-function vincularPropietario(idDepto, email) {
+function vincularPropietario(idUnidad, email) {
     const db = obtenerTodo();
+    const unidad = buscarUnidadPorId(db, idUnidad);
 
-    const depto = db.departamentos.find(
-        d => String(d.id) === String(idDepto)
-    );
+    if (!unidad) return { ok: false, error: "Unidad no encontrada." };
 
-    if (!depto) {
+    if (normalizarTipoUnidadData(unidad.tipo) !== "departamento") {
         return {
             ok: false,
-            error: "Unidad no encontrada."
+            error: "Solo se puede asignar propietario principal a unidades de tipo departamento."
         };
     }
 
-    depto.emailPropietario = email;
-    depto.estadoInvitacion = "pendiente";
+    if (unidad.estado === "mantenimiento" || unidad.estado === "inactiva") {
+        return {
+            ok: false,
+            error: "No puedes vincular residentes a una unidad en mantenimiento o inactiva."
+        };
+    }
+
+    if (unidad.emailPropietario) {
+        return {
+            ok: false,
+            error: "La unidad ya tiene propietario vinculado o invitado."
+        };
+    }
+
+    unidad.emailPropietario = String(email).trim().toLowerCase();
+    unidad.estadoInvitacion = "pendiente";
+    unidad.codigoPropietario = generarCodigoInvitacionData();
 
     guardarTodo(db);
 
     return { ok: true };
 }
 
-function vincularInquilino(idDepto, email) {
+function vincularInquilino(idUnidad, email) {
     const db = obtenerTodo();
+    const unidad = buscarUnidadPorId(db, idUnidad);
 
-    const depto = db.departamentos.find(
-        d => String(d.id) === String(idDepto)
-    );
+    if (!unidad) return { ok: false, error: "Unidad no encontrada." };
 
-    if (!depto) {
+    if (normalizarTipoUnidadData(unidad.tipo) !== "departamento") {
         return {
             ok: false,
-            error: "Unidad no encontrada."
+            error: "Solo se puede asignar inquilino principal a unidades de tipo departamento."
         };
     }
 
-    depto.emailInquilino = email;
-    depto.estadoInquilino = "pendiente";
+    if (unidad.estado === "mantenimiento" || unidad.estado === "inactiva") {
+        return {
+            ok: false,
+            error: "No puedes vincular residentes a una unidad en mantenimiento o inactiva."
+        };
+    }
+
+    if (unidad.emailInquilino) {
+        return {
+            ok: false,
+            error: "La unidad ya tiene inquilino vinculado o invitado."
+        };
+    }
+
+    unidad.emailInquilino = String(email).trim().toLowerCase();
+    unidad.estadoInquilino = "pendiente";
+    unidad.codigoInquilino = generarCodigoInvitacionData();
 
     guardarTodo(db);
 
     return { ok: true };
 }
 
-function eliminarVinculacion(idDepto, tipo) {
+function vincularAutorizado(idUnidad, email) {
     const db = obtenerTodo();
+    const unidad = buscarUnidadPorId(db, idUnidad);
 
-    const depto = db.departamentos.find(
-        d => String(d.id) === String(idDepto)
-    );
+    if (!unidad) return { ok: false, error: "Unidad no encontrada." };
 
-    if (!depto) {
+    if (unidad.estado === "mantenimiento" || unidad.estado === "inactiva") {
         return {
             ok: false,
-            error: "Unidad no encontrada."
+            error: "No puedes vincular usuarios a una unidad en mantenimiento o inactiva."
         };
     }
+
+    unidad.autorizados = unidad.autorizados || [];
+
+    const correo = String(email).trim().toLowerCase();
+
+    const yaExisteEnUnidad =
+        String(unidad.emailPropietario || "").toLowerCase() === correo ||
+        String(unidad.emailInquilino || "").toLowerCase() === correo ||
+        unidad.autorizados.some(item => String(item.correo).toLowerCase() === correo);
+
+    if (yaExisteEnUnidad) {
+        return {
+            ok: false,
+            error: "Este correo ya está vinculado o invitado en esta unidad."
+        };
+    }
+
+    unidad.autorizados.push({
+        id: Date.now().toString(),
+        correo,
+        estado: "pendiente",
+        codigo: generarCodigoInvitacionData(),
+        fechaRegistro: new Date().toISOString()
+    });
+
+    guardarTodo(db);
+
+    return { ok: true };
+}
+
+function eliminarVinculacion(idUnidad, tipo, autorizadoId = "") {
+    const db = obtenerTodo();
+    const unidad = buscarUnidadPorId(db, idUnidad);
+
+    if (!unidad) return { ok: false, error: "Unidad no encontrada." };
 
     if (tipo === "propietario") {
-        depto.emailPropietario = null;
-        depto.estadoInvitacion = null;
-
-        depto.nombreReal = null;
-        depto.dniPropietario = null;
-        depto.password = null;
+        unidad.emailPropietario = null;
+        unidad.estadoInvitacion = null;
+        unidad.codigoPropietario = null;
+        unidad.nombreReal = null;
+        unidad.dniPropietario = null;
+        unidad.password = null;
     }
 
     if (tipo === "inquilino") {
-        depto.emailInquilino = null;
-        depto.estadoInquilino = null;
+        unidad.emailInquilino = null;
+        unidad.estadoInquilino = null;
+        unidad.codigoInquilino = null;
+        unidad.nombreInquilino = null;
+        unidad.dniInquilino = null;
+        unidad.passwordInquilino = null;
+    }
 
-        depto.nombreInquilino = null;
-        depto.dniInquilino = null;
-        depto.passwordInquilino = null;
+    if (tipo === "autorizado") {
+        unidad.autorizados = (unidad.autorizados || []).filter(item =>
+            String(item.id) !== String(autorizadoId)
+        );
     }
 
     guardarTodo(db);
 
     return { ok: true };
+}
+
+function buscarUnidadPorId(db, idUnidad) {
+    return (db.departamentos || []).find(unidad =>
+        String(unidad.id) === String(idUnidad)
+    );
+}
+
+function generarCodigoInvitacionData() {
+    return "ED-" + Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
 // ==========================================
@@ -295,48 +554,60 @@ function eliminarVinculacion(idDepto, tipo) {
 function agregarAreaComun(area) {
     const db = obtenerTodo();
 
+    const nombre = String(area.nombre || "").trim();
+
+    if (!nombre) {
+        return {
+            ok: false,
+            error: "Ingresa el nombre del área común."
+        };
+    }
+
+    const duplicado = db.areasComunes.some(item =>
+        String(item.nombre).toLowerCase() === nombre.toLowerCase()
+    );
+
+    if (duplicado) {
+        return {
+            ok: false,
+            error: "Ya existe un área común con ese nombre."
+        };
+    }
+
     const nuevaArea = {
         id: Date.now().toString(),
-        nombre: area.nombre,
+        nombre,
         aforo: area.aforo,
-        descripcion: area.descripcion || "",
+        descripcion: String(area.descripcion || "").trim(),
         estado: area.estado || "disponible",
         fechaRegistro: new Date().toISOString()
     };
 
     db.areasComunes.push(nuevaArea);
-
     guardarTodo(db);
 
-    return { ok: true };
-}
-
-function cambiarEstadoArea(id, nuevoEstado) {
-    const db = obtenerTodo();
-
-    const area = db.areasComunes.find(
-        a => String(a.id) === String(id)
-    );
-
-    if (!area) {
-        return {
-            ok: false,
-            error: "Área no encontrada."
-        };
-    }
-
-    area.estado = nuevoEstado;
-
-    guardarTodo(db);
-
-    return { ok: true };
+    return {
+        ok: true,
+        area: nuevaArea
+    };
 }
 
 function eliminarAreaComun(id) {
     const db = obtenerTodo();
 
-    db.areasComunes = db.areasComunes.filter(
-        a => String(a.id) !== String(id)
+    const tieneReservas = db.reservas.some(reserva =>
+        String(reserva.areaId) === String(id)
+    );
+
+    if (tieneReservas) {
+        return {
+            ok: false,
+            error: "No puedes eliminar un área con reservas registradas."
+        };
+    }
+
+    db.areasComunes = db.areasComunes.filter(area =>
+        String(area.id) !== String(id)
     );
 
     guardarTodo(db);
@@ -350,20 +621,36 @@ function eliminarAreaComun(id) {
 
 function agregarReservaArea(reserva) {
     const db = obtenerTodo();
-
-    const fechaHoy = new Date().toISOString().split("T")[0];
+    const fechaHoy = obtenerFechaHoyData();
 
     if (reserva.fecha < fechaHoy) {
         return {
             ok: false,
-            error: "No puedes reservar fechas anteriores."
+            error: "No puedes reservar fechas anteriores a la actual."
         };
     }
 
-    const existe = db.reservas.find(r =>
-        String(r.areaId) === String(reserva.areaId) &&
-        r.fecha === reserva.fecha &&
-        String(r.id) !== String(reserva.id || "")
+    const area = db.areasComunes.find(item =>
+        String(item.id) === String(reserva.areaId)
+    );
+
+    if (!area) {
+        return {
+            ok: false,
+            error: "Área común no encontrada."
+        };
+    }
+
+    if (String(area.estado).toLowerCase() !== "disponible") {
+        return {
+            ok: false,
+            error: "El área no está disponible para reservas."
+        };
+    }
+
+    const existe = db.reservas.some(item =>
+        String(item.areaId) === String(reserva.areaId) &&
+        item.fecha === reserva.fecha
     );
 
     if (existe) {
@@ -383,17 +670,19 @@ function agregarReservaArea(reserva) {
     };
 
     db.reservas.push(nuevaReserva);
-
     guardarTodo(db);
 
-    return { ok: true };
+    return {
+        ok: true,
+        reserva: nuevaReserva
+    };
 }
 
 function editarReservaArea(id, datos) {
     const db = obtenerTodo();
 
-    const reserva = db.reservas.find(
-        r => String(r.id) === String(id)
+    const reserva = db.reservas.find(item =>
+        String(item.id) === String(id)
     );
 
     if (!reserva) {
@@ -403,10 +692,19 @@ function editarReservaArea(id, datos) {
         };
     }
 
-    const existe = db.reservas.find(r =>
-        String(r.id) !== String(id) &&
-        String(r.areaId) === String(datos.areaId) &&
-        r.fecha === datos.fecha
+    const fechaHoy = obtenerFechaHoyData();
+
+    if (datos.fecha < fechaHoy) {
+        return {
+            ok: false,
+            error: "No puedes cambiar la reserva a una fecha pasada."
+        };
+    }
+
+    const existe = db.reservas.some(item =>
+        String(item.id) !== String(id) &&
+        String(item.areaId) === String(datos.areaId) &&
+        item.fecha === datos.fecha
     );
 
     if (existe) {
@@ -419,16 +717,23 @@ function editarReservaArea(id, datos) {
     reserva.areaId = datos.areaId;
     reserva.fecha = datos.fecha;
 
+    if (datos.departamentoId) {
+        reserva.departamentoId = datos.departamentoId;
+    }
+
     guardarTodo(db);
 
-    return { ok: true };
+    return {
+        ok: true,
+        reserva
+    };
 }
 
 function eliminarReservaArea(id) {
     const db = obtenerTodo();
 
-    db.reservas = db.reservas.filter(
-        r => String(r.id) !== String(id)
+    db.reservas = db.reservas.filter(item =>
+        String(item.id) !== String(id)
     );
 
     guardarTodo(db);
@@ -436,88 +741,14 @@ function eliminarReservaArea(id) {
     return { ok: true };
 }
 
-// ==========================================
-// ACTIVACIÓN DE CUENTAS
-// ==========================================
+function obtenerFechaHoyData() {
+    const hoy = new Date();
 
-function activarCuenta(idDepto, rol, datos) {
-    const db = obtenerTodo();
+    const year = hoy.getFullYear();
+    const month = String(hoy.getMonth() + 1).padStart(2, "0");
+    const day = String(hoy.getDate()).padStart(2, "0");
 
-    const depto = db.departamentos.find(
-        d => String(d.id) === String(idDepto)
-    );
-
-    if (!depto) {
-        return {
-            ok: false,
-            error: "Unidad no encontrada."
-        };
-    }
-
-    if (rol === "Propietario") {
-        depto.nombreReal = datos.nombre;
-        depto.dniPropietario = datos.dni;
-        depto.password = datos.password;
-        depto.estadoInvitacion = "aceptada";
-    } else {
-        depto.nombreInquilino = datos.nombre;
-        depto.dniInquilino = datos.dni;
-        depto.passwordInquilino = datos.password;
-        depto.estadoInquilino = "aceptada";
-    }
-
-    guardarTodo(db);
-
-    return { ok: true };
-}
-
-// ==========================================
-// RECUPERAR ACCESO
-// ==========================================
-
-function recuperarAcceso(email, nombre, dni, nuevaPassword) {
-    const db = obtenerTodo();
-
-    const depto = db.departamentos.find(
-        d =>
-            d.emailPropietario === email ||
-            d.emailInquilino === email
-    );
-
-    if (!depto) {
-        return {
-            ok: false,
-            error: "Correo no encontrado."
-        };
-    }
-
-    const esPropietario =
-        depto.emailPropietario === email;
-
-    const nombreDB = esPropietario
-        ? depto.nombreReal
-        : depto.nombreInquilino;
-
-    const dniDB = esPropietario
-        ? depto.dniPropietario
-        : depto.dniInquilino;
-
-    if (nombreDB !== nombre || dniDB !== dni) {
-        return {
-            ok: false,
-            error: "Datos incorrectos."
-        };
-    }
-
-    if (esPropietario) {
-        depto.password = nuevaPassword;
-    } else {
-        depto.passwordInquilino = nuevaPassword;
-    }
-
-    guardarTodo(db);
-
-    return { ok: true };
+    return `${year}-${month}-${day}`;
 }
 
 // ==========================================
@@ -525,13 +756,5 @@ function recuperarAcceso(email, nombre, dni, nuevaPassword) {
 // ==========================================
 
 function limpiarDB() {
-    const confirmar = confirm(
-        "¿Deseas borrar toda la base de datos?"
-    );
-
-    if (!confirmar) return;
-
     localStorage.removeItem("edifika_db");
-
-    location.reload();
 }

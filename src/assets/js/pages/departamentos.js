@@ -1,7 +1,8 @@
 document.addEventListener("DOMContentLoaded", () => {
     protegerPaginaAdmin();
-    cargarPisosDisponibles();
+    cargarConfiguracionUnidades();
     configurarFormularioDepartamento();
+    configurarCambioTipoUnidad();
     configurarFiltros();
     renderizarDepartamentos();
 });
@@ -20,34 +21,171 @@ function protegerPaginaAdmin() {
     }
 }
 
-function cargarPisosDisponibles() {
+function cargarConfiguracionUnidades() {
     const db = obtenerTodo();
-    const selectPiso = document.getElementById("pisoDepartamento");
-    const filtroPiso = document.getElementById("filtroPisoUnidad");
+    const config = db.configEdificio;
 
-    if (!db.configEdificio || !db.configEdificio.pisos) {
-        alert("Primero debes configurar la cantidad de pisos del edificio.");
+    if (!config || !config.pisos) {
+        alert("Primero debes configurar el edificio.");
         window.location.href = "config.html";
         return;
     }
 
-    if (selectPiso) {
-        selectPiso.innerHTML = `<option value="">Seleccione piso...</option>`;
+    cargarTiposPermitidos(config);
+    cargarPisosPorTipo();
+    cargarFiltroPisos(config);
+    actualizarAyudaFormato();
+}
+
+function cargarTiposPermitidos(config) {
+    const selectTipo = document.getElementById("tipoUnidad");
+    const filtroTipo = document.getElementById("filtroTipoUnidad");
+
+    const tipos = [
+        { value: "departamento", label: "Departamento", permitido: true },
+        { value: "estacionamiento", label: "Estacionamiento", permitido: config.tieneEstacionamientos === "si" },
+        { value: "deposito", label: "Depósito", permitido: config.tieneDepositos === "si" },
+        { value: "oficina", label: "Oficina / Local", permitido: config.tieneOficinas === "si" }
+    ];
+
+    if (selectTipo) {
+        selectTipo.innerHTML = "";
+        tipos.filter(t => t.permitido).forEach(t => {
+            selectTipo.innerHTML += `<option value="${t.value}">${t.label}</option>`;
+        });
     }
 
-    if (filtroPiso) {
-        filtroPiso.innerHTML = `<option value="">Todos</option>`;
+    if (filtroTipo) {
+        filtroTipo.innerHTML = `<option value="">Todos</option>`;
+        tipos.filter(t => t.permitido).forEach(t => {
+            filtroTipo.innerHTML += `<option value="${t.value}">${t.label}</option>`;
+        });
     }
+}
 
-    for (let i = 1; i <= Number(db.configEdificio.pisos); i++) {
-        if (selectPiso) {
-            selectPiso.innerHTML += `<option value="${i}">Piso ${i}</option>`;
+function configurarCambioTipoUnidad() {
+    const tipoUnidad = document.getElementById("tipoUnidad");
+
+    if (!tipoUnidad) return;
+
+    tipoUnidad.addEventListener("change", () => {
+        cargarPisosPorTipo();
+        actualizarAyudaFormato();
+        limpiarCodigoUnidad();
+    });
+}
+
+function cargarPisosPorTipo() {
+    const db = obtenerTodo();
+    const config = db.configEdificio;
+
+    const selectPiso = document.getElementById("pisoDepartamento");
+    const tipo = document.getElementById("tipoUnidad")?.value || "departamento";
+
+    if (!selectPiso || !config) return;
+
+    selectPiso.innerHTML = `<option value="">Seleccione ubicación...</option>`;
+
+    const ubicaciones = obtenerUbicacionesPermitidasPorTipo(tipo, config);
+
+    ubicaciones.forEach(ubicacion => {
+        selectPiso.innerHTML += `
+            <option value="${ubicacion.value}">
+                ${ubicacion.label}
+            </option>
+        `;
+    });
+}
+
+function cargarFiltroPisos(config) {
+    const filtroPiso = document.getElementById("filtroPisoUnidad");
+
+    if (!filtroPiso) return;
+
+    filtroPiso.innerHTML = `<option value="">Todos</option>`;
+
+    const ubicaciones = obtenerTodasLasUbicaciones(config);
+
+    ubicaciones.forEach(ubicacion => {
+        filtroPiso.innerHTML += `
+            <option value="${ubicacion.value}">
+                ${ubicacion.label}
+            </option>
+        `;
+    });
+}
+
+function obtenerUbicacionesPermitidasPorTipo(tipo, config) {
+    const sotanos = Number(config.sotanos || 0);
+    const pisos = Number(config.pisos || 0);
+
+    const ubicaciones = [];
+
+    const agregarSotanos = () => {
+        for (let i = 1; i <= sotanos; i++) {
+            ubicaciones.push({
+                value: `S${i}`,
+                label: `Sótano ${i}`
+            });
         }
+    };
 
-        if (filtroPiso) {
-            filtroPiso.innerHTML += `<option value="${i}">Piso ${i}</option>`;
+    const agregarPisos = () => {
+        for (let i = 1; i <= pisos; i++) {
+            ubicaciones.push({
+                value: String(i),
+                label: `Piso ${i}`
+            });
+        }
+    };
+
+    if (tipo === "departamento") {
+        agregarPisos();
+    }
+
+    if (tipo === "estacionamiento") {
+        if (sotanos > 0) {
+            agregarSotanos();
+        } else {
+            agregarPisos();
         }
     }
+
+    if (tipo === "deposito") {
+        if (sotanos > 0) {
+            agregarSotanos();
+        } else {
+            agregarPisos();
+        }
+    }
+
+    if (tipo === "oficina") {
+        agregarPisos();
+    }
+
+    return ubicaciones;
+}
+
+function obtenerTodasLasUbicaciones(config) {
+    const ubicaciones = [];
+    const sotanos = Number(config.sotanos || 0);
+    const pisos = Number(config.pisos || 0);
+
+    for (let i = 1; i <= sotanos; i++) {
+        ubicaciones.push({
+            value: `S${i}`,
+            label: `Sótano ${i}`
+        });
+    }
+
+    for (let i = 1; i <= pisos; i++) {
+        ubicaciones.push({
+            value: String(i),
+            label: `Piso ${i}`
+        });
+    }
+
+    return ubicaciones;
 }
 
 function configurarFormularioDepartamento() {
@@ -79,13 +217,17 @@ function configurarFormularioDepartamento() {
         }
 
         limpiarFormularioDepartamento();
+        cargarPisosPorTipo();
         renderizarDepartamentos();
 
         alert(id ? "Unidad actualizada correctamente." : "Unidad registrada correctamente.");
     });
 
     if (btnCancelar) {
-        btnCancelar.addEventListener("click", limpiarFormularioDepartamento);
+        btnCancelar.addEventListener("click", () => {
+            limpiarFormularioDepartamento();
+            cargarPisosPorTipo();
+        });
     }
 }
 
@@ -140,14 +282,15 @@ function renderizarDepartamentos() {
 
     if (estado) {
         departamentos = departamentos.filter(dep =>
-            normalizarEstadoUnidad(dep.estado) === estado
+            obtenerEstadoRealUnidad(dep) === estado
         );
     }
 
     departamentos.sort((a, b) => {
-        if (Number(a.piso) !== Number(b.piso)) {
-            return Number(a.piso) - Number(b.piso);
-        }
+        const pisoA = ordenarPiso(a.piso);
+        const pisoB = ordenarPiso(b.piso);
+
+        if (pisoA !== pisoB) return pisoA - pisoB;
 
         return String(a.numero).localeCompare(String(b.numero));
     });
@@ -164,13 +307,13 @@ function renderizarDepartamentos() {
     }
 
     tbody.innerHTML = departamentos.map(dep => {
-        const estadoUnidad = normalizarEstadoUnidad(dep.estado);
+        const estadoUnidad = obtenerEstadoRealUnidad(dep);
         const tipoUnidad = normalizarTipoUnidad(dep.tipo);
 
         return `
             <tr>
                 <td><strong>${dep.numero}</strong></td>
-                <td>Piso ${dep.piso}</td>
+                <td>${formatearPiso(dep.piso)}</td>
                 <td>${formatearTipoUnidad(tipoUnidad)}</td>
                 <td>
                     <span class="badge ${claseEstado(estadoUnidad)}">
@@ -198,15 +341,15 @@ function actualizarEstadisticas() {
     const departamentos = db.departamentos || [];
 
     const disponibles = departamentos.filter(d =>
-        normalizarEstadoUnidad(d.estado) === "disponible"
+        obtenerEstadoRealUnidad(d) === "disponible"
     ).length;
 
     const ocupadas = departamentos.filter(d =>
-        normalizarEstadoUnidad(d.estado) === "ocupada"
+        obtenerEstadoRealUnidad(d) === "ocupada"
     ).length;
 
     const mantenimiento = departamentos.filter(d =>
-        normalizarEstadoUnidad(d.estado) === "mantenimiento"
+        obtenerEstadoRealUnidad(d) === "mantenimiento"
     ).length;
 
     const total = document.getElementById("totalUnidades");
@@ -233,12 +376,12 @@ function cargarDepartamentoParaEditar(id) {
     }
 
     document.getElementById("departamentoId").value = departamento.id;
+    document.getElementById("tipoUnidad").value = normalizarTipoUnidad(departamento.tipo);
+
+    cargarPisosPorTipo();
+
     document.getElementById("numeroDepartamento").value = departamento.numero;
     document.getElementById("pisoDepartamento").value = departamento.piso;
-
-    if (document.getElementById("tipoUnidad")) {
-        document.getElementById("tipoUnidad").value = normalizarTipoUnidad(departamento.tipo);
-    }
 
     if (document.getElementById("estadoUnidad")) {
         document.getElementById("estadoUnidad").value = normalizarEstadoUnidad(departamento.estado);
@@ -247,6 +390,8 @@ function cargarDepartamentoParaEditar(id) {
     if (document.getElementById("observacionesUnidad")) {
         document.getElementById("observacionesUnidad").value = departamento.observaciones || "";
     }
+
+    actualizarAyudaFormato();
 
     window.scrollTo({
         top: 0,
@@ -277,6 +422,67 @@ function limpiarFormularioDepartamento() {
 
     if (form) form.reset();
     if (departamentoId) departamentoId.value = "";
+
+    actualizarAyudaFormato();
+}
+
+function limpiarCodigoUnidad() {
+    const inputCodigo = document.getElementById("numeroDepartamento");
+
+    if (inputCodigo) inputCodigo.value = "";
+}
+
+function actualizarAyudaFormato() {
+    const ayuda = document.getElementById("ayudaFormatoUnidad");
+    const codigo = document.getElementById("numeroDepartamento");
+    const tipo = document.getElementById("tipoUnidad")?.value || "departamento";
+
+    if (!ayuda) return;
+
+    const ayudas = {
+        departamento: {
+            texto: "Formato requerido para departamento: Piso-Letra. Ejemplo: 1-A, 2-B.",
+            placeholder: "Ej: 1-A"
+        },
+        estacionamiento: {
+            texto: "Formato requerido para estacionamiento: E-Número. Ejemplo: E-01, E-02.",
+            placeholder: "Ej: E-01"
+        },
+        deposito: {
+            texto: "Formato requerido para depósito: D-Número. Ejemplo: D-01, D-02.",
+            placeholder: "Ej: D-01"
+        },
+        oficina: {
+            texto: "Formato requerido para oficina/local: OF-Número. Ejemplo: OF-101, OF-201.",
+            placeholder: "Ej: OF-101"
+        }
+    };
+
+    ayuda.textContent = ayudas[tipo]?.texto || ayudas.departamento.texto;
+
+    if (codigo) {
+        codigo.placeholder = ayudas[tipo]?.placeholder || "Ej: 1-A";
+    }
+}
+
+function obtenerEstadoRealUnidad(dep) {
+    const estadoManual = normalizarEstadoUnidad(dep.estado);
+
+    if (estadoManual === "mantenimiento" || estadoManual === "inactiva") {
+        return estadoManual;
+    }
+
+    const tienePropietarioAceptado =
+        dep.emailPropietario && dep.estadoInvitacion === "aceptada";
+
+    const tieneInquilinoAceptado =
+        dep.emailInquilino && dep.estadoInquilino === "aceptada";
+
+    if (tienePropietarioAceptado || tieneInquilinoAceptado || dep.residente) {
+        return "ocupada";
+    }
+
+    return "disponible";
 }
 
 function normalizarEstadoUnidad(estado) {
@@ -335,6 +541,26 @@ function formatearTipoUnidad(tipo) {
     };
 
     return tipos[tipo] || "Departamento";
+}
+
+function formatearPiso(piso) {
+    const valor = String(piso);
+
+    if (valor.startsWith("S")) {
+        return `Sótano ${valor.replace("S", "")}`;
+    }
+
+    return `Piso ${valor}`;
+}
+
+function ordenarPiso(piso) {
+    const valor = String(piso);
+
+    if (valor.startsWith("S")) {
+        return -Number(valor.replace("S", ""));
+    }
+
+    return Number(valor);
 }
 
 function formatearFecha(fechaISO) {

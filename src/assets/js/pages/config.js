@@ -27,12 +27,16 @@ function inicializarEdificios() {
 
     if (db.configEdificio && db.edificios.length === 0) {
         db.edificios.push({
-            id: Date.now(),
+            id: Date.now().toString(),
             nombre: db.configEdificio.nombre,
             direccion: db.configEdificio.direccion,
             pisos: db.configEdificio.pisos,
+            sotanos: db.configEdificio.sotanos || 0,
+            tieneOficinas: db.configEdificio.tieneOficinas || "no",
+            tieneEstacionamientos: db.configEdificio.tieneEstacionamientos || "si",
+            tieneDepositos: db.configEdificio.tieneDepositos || "si",
             activo: true,
-            fechaCreacion: new Date().toISOString()
+            fechaCreacion: db.configEdificio.fechaRegistro || new Date().toISOString()
         });
     }
 
@@ -42,23 +46,42 @@ function inicializarEdificios() {
 function configurarFormulario() {
     const form = document.getElementById("formEdificio");
 
+    if (!form) return;
+
     form.addEventListener("submit", event => {
         event.preventDefault();
 
         const id = document.getElementById("edificioId").value;
-        const nombre = document.getElementById("nombreEdificio").value.trim();
-        const direccion = document.getElementById("direccionEdificio").value.trim();
-        const pisos = document.getElementById("pisosEdificio").value;
 
-        if (!nombre || !direccion || !pisos) {
-            alert("Completa todos los campos.");
+        const datos = {
+            nombre: document.getElementById("nombreEdificio").value.trim(),
+            direccion: document.getElementById("direccionEdificio").value.trim(),
+            pisos: document.getElementById("pisosEdificio").value,
+            sotanos: document.getElementById("sotanosEdificio").value,
+            tieneOficinas: document.getElementById("tieneOficinas").value,
+            tieneEstacionamientos: document.getElementById("tieneEstacionamientos").value,
+            tieneDepositos: document.getElementById("tieneDepositos").value
+        };
+
+        if (!datos.nombre || !datos.direccion || !datos.pisos) {
+            alert("Completa los campos obligatorios.");
+            return;
+        }
+
+        if (Number(datos.pisos) < 1) {
+            alert("El edificio debe tener al menos 1 piso superior.");
+            return;
+        }
+
+        if (Number(datos.sotanos) < 0) {
+            alert("La cantidad de sótanos no puede ser negativa.");
             return;
         }
 
         if (id) {
-            editarEdificio(id, nombre, direccion, pisos);
+            editarEdificio(id, datos);
         } else {
-            registrarEdificio(nombre, direccion, pisos);
+            registrarEdificio(datos);
         }
 
         limpiarFormulario();
@@ -67,28 +90,39 @@ function configurarFormulario() {
 }
 
 function configurarBotones() {
-    document.getElementById("btnCancelarEdicion").addEventListener("click", limpiarFormulario);
+    const btnCancelar = document.getElementById("btnCancelarEdicion");
+    const btnLimpiar = document.getElementById("btnLimpiarDB");
 
-    document.getElementById("btnLimpiarDB").addEventListener("click", () => {
-        const confirmar = confirm("¿Seguro que deseas borrar toda la base de datos?");
+    if (btnCancelar) {
+        btnCancelar.addEventListener("click", limpiarFormulario);
+    }
 
-        if (!confirmar) return;
+    if (btnLimpiar) {
+        btnLimpiar.addEventListener("click", () => {
+            const confirmar = confirm("¿Seguro que deseas borrar toda la base de datos?");
 
-        limpiarDB();
-        window.location.href = "../../../index.html";
-    });
+            if (!confirmar) return;
+
+            limpiarDB();
+            window.location.href = "../../../index.html";
+        });
+    }
 }
 
-function registrarEdificio(nombre, direccion, pisos) {
+function registrarEdificio(datos) {
     const db = obtenerTodo();
 
     db.edificios = db.edificios || [];
 
     const nuevoEdificio = {
-        id: Date.now(),
-        nombre,
-        direccion,
-        pisos,
+        id: Date.now().toString(),
+        nombre: datos.nombre,
+        direccion: datos.direccion,
+        pisos: datos.pisos,
+        sotanos: datos.sotanos || 0,
+        tieneOficinas: datos.tieneOficinas,
+        tieneEstacionamientos: datos.tieneEstacionamientos,
+        tieneDepositos: datos.tieneDepositos,
         activo: db.edificios.length === 0,
         fechaCreacion: new Date().toISOString()
     };
@@ -96,11 +130,7 @@ function registrarEdificio(nombre, direccion, pisos) {
     db.edificios.push(nuevoEdificio);
 
     if (nuevoEdificio.activo) {
-        db.configEdificio = {
-            nombre,
-            direccion,
-            pisos
-        };
+        db.configEdificio = crearConfigDesdeEdificio(nuevoEdificio);
     }
 
     guardarTodo(db);
@@ -108,7 +138,7 @@ function registrarEdificio(nombre, direccion, pisos) {
     alert("Edificio registrado correctamente.");
 }
 
-function editarEdificio(id, nombre, direccion, pisos) {
+function editarEdificio(id, datos) {
     const db = obtenerTodo();
 
     const edificio = db.edificios.find(e => String(e.id) === String(id));
@@ -119,7 +149,7 @@ function editarEdificio(id, nombre, direccion, pisos) {
     }
 
     if (edificio.activo) {
-        const validacion = validarCambioPisos(pisos);
+        const validacion = validarCambioPisos(datos.pisos);
 
         if (!validacion.ok) {
             alert(validacion.error);
@@ -127,16 +157,16 @@ function editarEdificio(id, nombre, direccion, pisos) {
         }
     }
 
-    edificio.nombre = nombre;
-    edificio.direccion = direccion;
-    edificio.pisos = pisos;
+    edificio.nombre = datos.nombre;
+    edificio.direccion = datos.direccion;
+    edificio.pisos = datos.pisos;
+    edificio.sotanos = datos.sotanos || 0;
+    edificio.tieneOficinas = datos.tieneOficinas;
+    edificio.tieneEstacionamientos = datos.tieneEstacionamientos;
+    edificio.tieneDepositos = datos.tieneDepositos;
 
     if (edificio.activo) {
-        db.configEdificio = {
-            nombre,
-            direccion,
-            pisos
-        };
+        db.configEdificio = crearConfigDesdeEdificio(edificio);
     }
 
     guardarTodo(db);
@@ -148,12 +178,14 @@ function renderizarEdificios() {
     const db = obtenerTodo();
     const tabla = document.getElementById("tablaEdificios");
 
+    if (!tabla) return;
+
     const edificios = db.edificios || [];
 
     if (edificios.length === 0) {
         tabla.innerHTML = `
             <tr>
-                <td colspan="6">No hay edificios registrados.</td>
+                <td colspan="10">No hay edificios registrados.</td>
             </tr>
         `;
         return;
@@ -164,6 +196,10 @@ function renderizarEdificios() {
             <td>${edificio.nombre}</td>
             <td>${edificio.direccion}</td>
             <td>${edificio.pisos}</td>
+            <td>${edificio.sotanos || 0}</td>
+            <td>${formatearSiNo(edificio.tieneOficinas)}</td>
+            <td>${formatearSiNo(edificio.tieneEstacionamientos)}</td>
+            <td>${formatearSiNo(edificio.tieneDepositos)}</td>
             <td>
                 <span class="badge ${edificio.activo ? "vacio" : "ocupado"}">
                     ${edificio.activo ? "Activo" : "Inactivo"}
@@ -198,6 +234,10 @@ function cargarEdificioParaEditar(id) {
     document.getElementById("nombreEdificio").value = edificio.nombre;
     document.getElementById("direccionEdificio").value = edificio.direccion;
     document.getElementById("pisosEdificio").value = edificio.pisos;
+    document.getElementById("sotanosEdificio").value = edificio.sotanos || 0;
+    document.getElementById("tieneOficinas").value = edificio.tieneOficinas || "no";
+    document.getElementById("tieneEstacionamientos").value = edificio.tieneEstacionamientos || "si";
+    document.getElementById("tieneDepositos").value = edificio.tieneDepositos || "si";
 }
 
 function activarEdificio(id) {
@@ -210,12 +250,7 @@ function activarEdificio(id) {
     db.edificios.forEach(e => e.activo = false);
 
     edificio.activo = true;
-
-    db.configEdificio = {
-        nombre: edificio.nombre,
-        direccion: edificio.direccion,
-        pisos: edificio.pisos
-    };
+    db.configEdificio = crearConfigDesdeEdificio(edificio);
 
     guardarTodo(db);
     renderizarEdificios();
@@ -235,11 +270,7 @@ function desactivarEdificio(id) {
     const activo = db.edificios.find(e => e.activo);
 
     db.configEdificio = activo
-        ? {
-            nombre: activo.nombre,
-            direccion: activo.direccion,
-            pisos: activo.pisos
-        }
+        ? crearConfigDesdeEdificio(activo)
         : null;
 
     guardarTodo(db);
@@ -248,9 +279,28 @@ function desactivarEdificio(id) {
     alert("Edificio desactivado correctamente.");
 }
 
+function crearConfigDesdeEdificio(edificio) {
+    return {
+        nombre: edificio.nombre,
+        direccion: edificio.direccion,
+        pisos: edificio.pisos,
+        sotanos: edificio.sotanos || 0,
+        tieneOficinas: edificio.tieneOficinas || "no",
+        tieneEstacionamientos: edificio.tieneEstacionamientos || "si",
+        tieneDepositos: edificio.tieneDepositos || "si"
+    };
+}
+
 function limpiarFormulario() {
-    document.getElementById("formEdificio").reset();
+    const form = document.getElementById("formEdificio");
+
+    if (form) form.reset();
+
     document.getElementById("edificioId").value = "";
+    document.getElementById("sotanosEdificio").value = 0;
+    document.getElementById("tieneOficinas").value = "no";
+    document.getElementById("tieneEstacionamientos").value = "si";
+    document.getElementById("tieneDepositos").value = "si";
 }
 
 function formatearFecha(fechaISO) {
@@ -263,4 +313,8 @@ function formatearFecha(fechaISO) {
         month: "2-digit",
         day: "2-digit"
     });
+}
+
+function formatearSiNo(valor) {
+    return valor === "si" ? "Sí" : "No";
 }

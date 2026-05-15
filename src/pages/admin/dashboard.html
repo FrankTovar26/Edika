@@ -9,91 +9,142 @@
 </head>
 <body>
 
-    <nav class="sidebar">
-        <h2>EDIFIKA</h2>
+<nav class="sidebar">
+    <h2>EDIFIKA</h2>
 
-        <div class="sidebar-menu">
-            <a href="dashboard.html" class="active">🏠 Dashboard</a>
-            <a href="departamentos.html">🏢 Unidades</a>
-            <a href="vinculacion.html">📩 Invitaciones</a>
-            <a href="areas.html">🌳 Áreas Comunes</a>
-            <a href="config.html">⚙️ Configuración</a>
-            <a href="../residente/inicio.html">🏠 Vista Usuario</a>
-            <a href="../../../index.html">🚪 Cerrar sesión</a>
-        </div>
-    </nav>
-
-    <main>
-        <h1 id="tituloEdificio">Cargando...</h1>
-
-        <section class="stats-grid">
-            <div class="card">
-                <span class="stat-number" id="totalUnidades">0</span>
-                <label>Total Unidades</label>
-            </div>
-
-            <div class="card">
-                <span class="stat-number" id="unidadesOcupadas">0</span>
-                <label>Ocupadas</label>
-            </div>
-
-            <div class="card">
-                <span class="stat-number" id="porcentajeOcupacion">0%</span>
-                <label>Ocupación</label>
-            </div>
-        </section>
-
-        <section class="card">
-            <div class="form-group-container">
-                <div class="group">
-                    <label for="filtroPiso">Piso</label>
-                    <select id="filtroPiso">
-                        <option value="">Todos</option>
-                    </select>
-                </div>
-
-                <div class="group">
-                    <label for="filtroEstado">Estado</label>
-                    <select id="filtroEstado">
-                        <option value="">Todos</option>
-                        <option value="ocupado">Ocupado</option>
-                        <option value="vacio">Vacío</option>
-                    </select>
-                </div>
-            </div>
-        </section>
-
-        <section class="card">
-            <h2>Unidades</h2>
-
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Unidad</th>
-                            <th>Piso</th>
-                            <th>Residente</th>
-                            <th>Estado</th>
-                            <th>Acción</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tablaUnidades">
-                        <!-- Se llena con JS -->
-                    </tbody>
-                </table>
-            </div>
-        </section>
-    </main>
-
-    <div id="modalDetalle" class="modal">
-        <div class="modal-content">
-            <span class="close-btn" id="cerrarModal">&times;</span>
-            <h2>Detalle Unidad</h2>
-            <div id="detalleUnidad"></div>
-        </div>
+    <div class="sidebar-menu">
+        <a href="dashboard.html" class="active">🏠 Dashboard</a>
+        <a href="departamentos.html">🏢 Unidades</a>
+        <a href="vinculacion.html">📩 Invitaciones</a>
+        <a href="areas.html">🌳 Áreas Comunes</a>
+        <a href="config.html">⚙️ Configuración</a>
+        <a href="../residente/inicio.html">🏠 Vista Usuario</a>
+        <a href="../../../index.html">🚪 Cerrar sesión</a>
     </div>
+</nav>
 
-    <script src="../../assets/js/core/data.js"></script>
-    <script src="../../assets/js/pages/dashboard.js"></script>
+<main>
+    <h1 id="tituloEdificio">Cargando...</h1>
+
+    <section class="stats-grid">
+        <div class="card">
+            <span class="stat-number" id="totalUnidades">0</span>
+            <label>Total unidades</label>
+        </div>
+
+        <div class="card">
+            <span class="stat-number" id="totalDepartamentos">0</span>
+            <label>Departamentos</label>
+        </div>
+
+        <div class="card">
+            <span class="stat-number" id="totalEstacionamientos">0</span>
+            <label>Estacionamientos</label>
+        </div>
+
+        <div class="card">
+            <span class="stat-number" id="totalDepositos">0</span>
+            <label>Depósitos</label>
+        </div>
+
+        <div class="card">
+            <span class="stat-number" id="totalOficinas">0</span>
+            <label>Oficinas / locales</label>
+        </div>
+
+        <div class="card">
+            <span class="stat-number" id="unidadesOcupadas">0</span>
+            <label>Ocupadas</label>
+        </div>
+
+        <div class="card">
+            <span class="stat-number" id="unidadesDisponibles">0</span>
+            <label>Disponibles</label>
+        </div>
+
+        <div class="card">
+            <span class="stat-number" id="unidadesMantenimiento">0</span>
+            <label>Mantenimiento</label>
+        </div>
+
+        <div class="card">
+            <span class="stat-number" id="porcentajeOcupacion">0%</span>
+            <label>Ocupación</label>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>Filtros</h2>
+
+        <div class="form-group-container">
+            <div class="group">
+                <label for="filtroBusqueda">Buscar unidad</label>
+                <input type="text" id="filtroBusqueda" placeholder="Ej: 1-A, E-01, D-01, OF-101">
+            </div>
+
+            <div class="group">
+                <label for="filtroPiso">Ubicación / Piso</label>
+                <select id="filtroPiso">
+                    <option value="">Todos</option>
+                </select>
+            </div>
+
+            <div class="group">
+                <label for="filtroTipo">Tipo de unidad</label>
+                <select id="filtroTipo">
+                    <option value="">Todos</option>
+                    <option value="departamento">Departamento</option>
+                    <option value="estacionamiento">Estacionamiento</option>
+                    <option value="deposito">Depósito</option>
+                    <option value="oficina">Oficina / Local</option>
+                </select>
+            </div>
+
+            <div class="group">
+                <label for="filtroEstado">Estado</label>
+                <select id="filtroEstado">
+                    <option value="">Todos</option>
+                    <option value="disponible">Disponible</option>
+                    <option value="ocupada">Ocupada</option>
+                    <option value="mantenimiento">En mantenimiento</option>
+                    <option value="inactiva">Inactiva</option>
+                </select>
+            </div>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>Unidades</h2>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Unidad</th>
+                        <th>Ubicación</th>
+                        <th>Tipo</th>
+                        <th>Vinculación</th>
+                        <th>Estado</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaUnidades">
+                    <!-- Se llena con JS -->
+                </tbody>
+            </table>
+        </div>
+    </section>
+</main>
+
+<div id="modalDetalle" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" id="cerrarModal">&times;</span>
+        <h2>Detalle Unidad</h2>
+        <div id="detalleUnidad"></div>
+    </div>
+</div>
+
+<script src="../../assets/js/core/data.js"></script>
+<script src="../../assets/js/pages/dashboard.js"></script>
 </body>
 </html>
