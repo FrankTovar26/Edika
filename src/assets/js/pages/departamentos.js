@@ -33,6 +33,7 @@ function cargarConfiguracionUnidades() {
 
     db.unidadesGeneradas = db.unidadesGeneradas || [];
     db.departamentos = db.departamentos || [];
+    db.usuarios = db.usuarios || [];
 
     const unidadesPermitidas = obtenerUnidadesGeneradasPermitidas(db);
 
@@ -53,44 +54,51 @@ function cargarConfiguracionUnidades() {
 }
 
 function obtenerEdificiosPermitidosLocal() {
-    if (typeof obtenerEdificiosPermitidosSesion === "function") {
-        return obtenerEdificiosPermitidosSesion();
-    }
-
     const sesion = JSON.parse(localStorage.getItem("usuarioSesion"));
     const db = obtenerTodo();
 
-    if (!sesion || sesion.rol === "superadmin") {
-        return (db.edificios || []).map(edificio => String(edificio.id));
+    if (!sesion) return [];
+
+    const edificios = db.edificios || [];
+
+    if (sesion.rol === "superadmin") {
+        return edificios
+            .filter(edificio => edificio.activo !== false)
+            .map(edificio => String(edificio.id));
     }
 
     if (sesion.rol === "admin") {
-        return (sesion.edificioIds || [sesion.edificioId]).filter(Boolean).map(String);
+        const asignados = obtenerIdsEdificiosAsignadosSesion(sesion);
+
+        return edificios
+            .filter(edificio =>
+                edificio.activo !== false &&
+                asignados.includes(String(edificio.id))
+            )
+            .map(edificio => String(edificio.id));
     }
 
     return [];
 }
 
-function obtenerEdificioActivoLocal() {
-    if (typeof obtenerEdificioActivoId === "function") {
-        return obtenerEdificioActivoId();
+function obtenerIdsEdificiosAsignadosSesion(sesion) {
+    if (!sesion) return [];
+
+    if (Array.isArray(sesion.edificioIds) && sesion.edificioIds.length > 0) {
+        return sesion.edificioIds.filter(Boolean).map(String);
     }
 
-    const activo = localStorage.getItem("edifika_edificio_activo");
+    if (sesion.edificioId) {
+        return [String(sesion.edificioId)];
+    }
 
-    if (activo && activo !== "todos") return activo;
-
-    const permitidos = obtenerEdificiosPermitidosLocal();
-
-    return permitidos[0] || null;
+    return [];
 }
 
 function obtenerUnidadesGeneradasPermitidas(db) {
     const permitidos = obtenerEdificiosPermitidosLocal();
 
-    if (permitidos.length === 0) {
-        return db.unidadesGeneradas || [];
-    }
+    if (permitidos.length === 0) return [];
 
     return (db.unidadesGeneradas || []).filter(unidad =>
         permitidos.includes(String(unidad.edificioId || ""))
@@ -100,9 +108,7 @@ function obtenerUnidadesGeneradasPermitidas(db) {
 function obtenerDepartamentosPermitidos(db) {
     const permitidos = obtenerEdificiosPermitidosLocal();
 
-    if (permitidos.length === 0) {
-        return db.departamentos || [];
-    }
+    if (permitidos.length === 0) return [];
 
     return (db.departamentos || []).filter(dep =>
         permitidos.includes(String(dep.edificioId || ""))
@@ -328,6 +334,12 @@ function cargarUnidadesGeneradasSelect() {
     }
 
     unidadesFiltradas.sort((a, b) => {
+        const edificioA = obtenerNombreEdificio(db, a.edificioId);
+        const edificioB = obtenerNombreEdificio(db, b.edificioId);
+
+        const comparacionEdificio = edificioA.localeCompare(edificioB);
+        if (comparacionEdificio !== 0) return comparacionEdificio;
+
         const pisoA = ordenarPiso(a.piso);
         const pisoB = ordenarPiso(b.piso);
 
@@ -344,13 +356,15 @@ function cargarUnidadesGeneradasSelect() {
 
         const estaRegistrada = !!depRelacionado;
         const esLaEditada = idEditando && depRelacionado && String(depRelacionado.id) === String(idEditando);
+        const edificio = obtenerNombreEdificio(db, unidad.edificioId);
 
         selectUnidad.innerHTML += `
             <option
                 value="${unidad.codigo}"
+                data-edificio-id="${unidad.edificioId}"
                 ${estaRegistrada && !esLaEditada ? "disabled" : ""}
             >
-                ${unidad.codigo} ${estaRegistrada && !esLaEditada ? "(ya registrada)" : ""}
+                ${unidad.codigo} - ${edificio} ${estaRegistrada && !esLaEditada ? "(ya registrada)" : ""}
             </option>
         `;
     });
@@ -379,13 +393,18 @@ function obtenerUnidadGeneradaPorCodigo(codigo) {
     const db = obtenerTodo();
     const permitidos = obtenerEdificiosPermitidosLocal();
 
+    const select = document.getElementById("unidadGeneradaSelect");
+    const option = select?.selectedOptions?.[0];
+    const edificioSeleccionado = option?.dataset?.edificioId || "";
+
     return (db.unidadesGeneradas || []).find(unidad => {
         const mismoCodigo = String(unidad.codigo) === String(codigo);
-        const edificioPermitido =
-            permitidos.length === 0 ||
-            permitidos.includes(String(unidad.edificioId || ""));
+        const edificioPermitido = permitidos.includes(String(unidad.edificioId || ""));
+        const mismoEdificio = edificioSeleccionado
+            ? String(unidad.edificioId || "") === String(edificioSeleccionado)
+            : true;
 
-        return mismoCodigo && edificioPermitido;
+        return mismoCodigo && edificioPermitido && mismoEdificio;
     }) || null;
 }
 
@@ -408,12 +427,19 @@ function configurarFormularioDepartamento() {
             return;
         }
 
+        const estadoReal = obtenerEstadoRealUnidad({
+            edificioId: unidadGenerada.edificioId,
+            numero: unidadGenerada.codigo,
+            tipo: unidadGenerada.tipo,
+            estado: document.getElementById("estadoUnidad")?.value || "disponible"
+        });
+
         const datos = {
             edificioId: unidadGenerada.edificioId,
             numero: unidadGenerada.codigo,
             piso: unidadGenerada.piso,
             tipo: normalizarTipoUnidad(unidadGenerada.tipo),
-            estado: document.getElementById("estadoUnidad")?.value || "disponible",
+            estado: estadoReal,
             observaciones: document.getElementById("observacionesUnidad")?.value.trim() || "",
             origen: "configuracion"
         };
@@ -478,9 +504,14 @@ function renderizarDepartamentos() {
     const estado = document.getElementById("filtroEstadoUnidad")?.value || "";
 
     if (busqueda) {
-        departamentos = departamentos.filter(dep =>
-            String(dep.numero || "").toUpperCase().includes(busqueda)
-        );
+        departamentos = departamentos.filter(dep => {
+            const edificio = obtenerNombreEdificio(db, dep.edificioId).toUpperCase();
+
+            return (
+                String(dep.numero || "").toUpperCase().includes(busqueda) ||
+                edificio.includes(busqueda)
+            );
+        });
     }
 
     if (piso) {
@@ -502,6 +533,12 @@ function renderizarDepartamentos() {
     }
 
     departamentos.sort((a, b) => {
+        const edificioA = obtenerNombreEdificio(db, a.edificioId);
+        const edificioB = obtenerNombreEdificio(db, b.edificioId);
+
+        const comparacionEdificio = edificioA.localeCompare(edificioB);
+        if (comparacionEdificio !== 0) return comparacionEdificio;
+
         const pisoA = ordenarPiso(a.piso);
         const pisoB = ordenarPiso(b.piso);
 
@@ -524,16 +561,22 @@ function renderizarDepartamentos() {
     tbody.innerHTML = departamentos.map(dep => {
         const estadoUnidad = obtenerEstadoRealUnidad(dep);
         const tipoUnidad = normalizarTipoUnidad(dep.tipo);
+        const edificio = obtenerNombreEdificio(db, dep.edificioId);
+        const ocupante = obtenerTextoOcupanteUnidad(dep);
 
         return `
             <tr>
-                <td><strong>${dep.numero}</strong></td>
+                <td>
+                    <strong>${dep.numero}</strong><br>
+                    <small>${edificio}</small>
+                </td>
                 <td>${formatearPiso(dep.piso)}</td>
                 <td>${formatearTipoUnidad(tipoUnidad)}</td>
                 <td>
                     <span class="badge ${claseEstado(estadoUnidad)}">
                         ${formatearEstadoUnidad(estadoUnidad)}
                     </span>
+                    ${ocupante ? `<br><small>${ocupante}</small>` : ""}
                 </td>
                 <td>${dep.observaciones || "-"}</td>
                 <td>${formatearFecha(dep.fechaRegistro)}</td>
@@ -603,7 +646,7 @@ function cargarDepartamentoParaEditar(id) {
     document.getElementById("numeroDepartamento").value = departamento.numero;
 
     if (document.getElementById("estadoUnidad")) {
-        document.getElementById("estadoUnidad").value = normalizarEstadoUnidad(departamento.estado);
+        document.getElementById("estadoUnidad").value = obtenerEstadoRealUnidad(departamento);
     }
 
     if (document.getElementById("observacionesUnidad")) {
@@ -674,8 +717,9 @@ function actualizarAyudaFormato() {
 
     const db = obtenerTodo();
     const permitidos = obtenerEdificiosPermitidosLocal();
+
     const edificios = (db.edificios || [])
-        .filter(edificio => permitidos.length === 0 || permitidos.includes(String(edificio.id)))
+        .filter(edificio => permitidos.includes(String(edificio.id)))
         .map(edificio => edificio.nombre)
         .join(", ");
 
@@ -713,11 +757,89 @@ function obtenerEstadoRealUnidad(dep) {
     const tieneInquilinoAceptado =
         dep.emailInquilino && dep.estadoInquilino === "aceptada";
 
-    if (tienePropietarioAceptado || tieneInquilinoAceptado || dep.residente) {
+    const autorizadoEnUnidad = (dep.autorizados || []).some(a =>
+        a.estado === "aceptada"
+    );
+
+    const usuarioVinculado = existeUsuarioVinculadoAUnidad(dep);
+
+    if (
+        tienePropietarioAceptado ||
+        tieneInquilinoAceptado ||
+        autorizadoEnUnidad ||
+        usuarioVinculado ||
+        dep.residente
+    ) {
         return "ocupada";
     }
 
-    return estadoManual;
+    return "disponible";
+}
+
+function existeUsuarioVinculadoAUnidad(dep) {
+    const db = obtenerTodo();
+    const usuarios = db.usuarios || [];
+
+    return usuarios.some(usuario => {
+        if (usuario.estado && usuario.estado !== "activo") {
+            return false;
+        }
+
+        const unidades = usuario.unidadesAutorizadas || [];
+
+        return unidades.some(unidad => {
+            const mismoEdificio = String(unidad.edificioId || "") === String(dep.edificioId || "");
+            const mismaUnidadId = unidad.unidadId && dep.id && String(unidad.unidadId) === String(dep.id);
+            const mismoNumero = String(unidad.unidadNumero || unidad.numero || "") === String(dep.numero || "");
+            const mismoTipo = !unidad.tipoUnidad || normalizarTipoUnidad(unidad.tipoUnidad) === normalizarTipoUnidad(dep.tipo);
+
+            return mismoEdificio && mismoTipo && (mismaUnidadId || mismoNumero);
+        });
+    });
+}
+
+function obtenerTextoOcupanteUnidad(dep) {
+    const db = obtenerTodo();
+    const usuarios = db.usuarios || [];
+
+    const vinculados = usuarios.filter(usuario => {
+        const unidades = usuario.unidadesAutorizadas || [];
+
+        return unidades.some(unidad => {
+            const mismoEdificio = String(unidad.edificioId || "") === String(dep.edificioId || "");
+            const mismaUnidadId = unidad.unidadId && dep.id && String(unidad.unidadId) === String(dep.id);
+            const mismoNumero = String(unidad.unidadNumero || unidad.numero || "") === String(dep.numero || "");
+            const mismoTipo = !unidad.tipoUnidad || normalizarTipoUnidad(unidad.tipoUnidad) === normalizarTipoUnidad(dep.tipo);
+
+            return mismoEdificio && mismoTipo && (mismaUnidadId || mismoNumero);
+        });
+    });
+
+    if (vinculados.length === 0) return "";
+
+    return vinculados
+        .map(usuario => {
+            const vinculacion = (usuario.unidadesAutorizadas || []).find(unidad => {
+                const mismoEdificio = String(unidad.edificioId || "") === String(dep.edificioId || "");
+                const mismoNumero = String(unidad.unidadNumero || unidad.numero || "") === String(dep.numero || "");
+                return mismoEdificio && mismoNumero;
+            });
+
+            const tipo = vinculacion?.tipoVinculacion
+                ? capitalizar(vinculacion.tipoVinculacion)
+                : "Vinculado";
+
+            return `${tipo}: ${usuario.nombre || usuario.correo || "Usuario"}`;
+        })
+        .join("<br>");
+}
+
+function obtenerNombreEdificio(db, edificioId) {
+    const edificio = (db.edificios || []).find(e =>
+        String(e.id) === String(edificioId)
+    );
+
+    return edificio ? edificio.nombre : "-";
 }
 
 function normalizarEstadoUnidad(estado) {
@@ -779,7 +901,9 @@ function formatearTipoUnidad(tipo) {
 }
 
 function formatearPiso(piso) {
-    const valor = String(piso);
+    const valor = String(piso || "");
+
+    if (!valor) return "-";
 
     if (valor.startsWith("S")) {
         return `Sótano ${valor.replace("S", "")}`;
@@ -789,13 +913,13 @@ function formatearPiso(piso) {
 }
 
 function ordenarPiso(piso) {
-    const valor = String(piso);
+    const valor = String(piso || "");
 
     if (valor.startsWith("S")) {
         return -Number(valor.replace("S", ""));
     }
 
-    return Number(valor);
+    return Number(valor) || 0;
 }
 
 function formatearFecha(fechaISO) {
@@ -808,4 +932,10 @@ function formatearFecha(fechaISO) {
         month: "2-digit",
         day: "2-digit"
     });
+}
+
+function capitalizar(texto) {
+    if (!texto) return "";
+
+    return texto.charAt(0).toUpperCase() + texto.slice(1);
 }

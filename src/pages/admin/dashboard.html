@@ -9,20 +9,7 @@
 </head>
 <body>
 
-<nav class="sidebar">
-    <h2>EDIFIKA</h2>
-
-    <div class="sidebar-menu">
-        <a href="dashboard.html" class="active">🏠 Dashboard</a>
-        <a href="departamentos.html">🏢 Unidades</a>
-        <a href="vinculacion.html">📩 Invitaciones</a>
-        <a href="anuncios.html">📢 Anuncios</a>
-        <a href="areas.html">🌳 Áreas Comunes</a>
-        <a href="config.html">⚙️ Configuración</a>
-        <a href="../residente/inicio.html">🏠 Vista Usuario</a>
-        <a href="../../../index.html">🚪 Cerrar sesión</a>
-    </div>
-</nav>
+<nav id="sidebar"></nav>
 
 <main>
     <h1 id="tituloEdificio">Cargando...</h1>
@@ -137,6 +124,7 @@
     </section>
 </main>
 
+<!-- MODAL DETALLE UNIDAD -->
 <div id="modalDetalle" class="modal">
     <div class="modal-content">
         <span class="close-btn" id="cerrarModal">&times;</span>
@@ -145,6 +133,29 @@
     </div>
 </div>
 
+<!-- MODAL PRIMERA CONFIGURACIÓN -->
+<div id="modalPrimeraConfiguracion" class="modal">
+    <div class="modal-content">
+        <h2>Primera configuración requerida</h2>
+
+        <p>
+            Aún no tienes edificios configurados o asignados.
+            Para usar el sistema EDIFIKA, primero debes registrar la configuración inicial del edificio.
+        </p>
+
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+            <button class="btn btn-secondary" id="btnCancelarPrimeraConfig">
+                Más tarde
+            </button>
+
+            <button class="btn btn-blue" id="btnIrPrimeraConfig">
+                Configurar edificio
+            </button>
+        </div>
+    </div>
+</div>
+
+<script src="../../assets/js/components/sidebar.js"></script>
 <script src="../../assets/js/core/data.js"></script>
 <script src="../../assets/js/pages/dashboard.js"></script>
 </body>

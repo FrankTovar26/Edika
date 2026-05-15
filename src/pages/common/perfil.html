@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Mi Perfil - EDIFIKA</title>
+
+    <link rel="stylesheet" href="../../assets/css/style.css">
+</head>
+
+<body>
+
+    <!-- SIDEBAR -->
+    <nav id="sidebar"></nav>
+
+    <!-- CONTENIDO -->
+    <main class="main-content">
+
+        <!-- HEADER PERFIL -->
+        <section class="card">
+
+            <div class="perfil-header">
+
+                <div class="perfil-avatar" id="perfilAvatar">
+                    U
+                </div>
+
+                <div class="perfil-info">
+
+                    <h1 id="perfilNombreTitulo">
+                        Mi Perfil
+                    </h1>
+
+                    <p id="perfilRolTexto">
+                        Usuario del sistema
+                    </p>
+
+                </div>
+
+            </div>
+
+        </section>
+
+        <!-- DATOS PERSONALES -->
+        <section class="card">
+
+            <h2>Datos Personales</h2>
+
+            <form id="formPerfil">
+
+                <input type="hidden" id="perfilId">
+
+                <div class="form-grid">
+
+                    <div class="group">
+                        <label>Nombres completos</label>
+
+                        <input
+                            type="text"
+                            id="perfilNombre"
+                            placeholder="Ingrese nombres completos"
+                            required
+                        >
+                    </div>
+
+                    <div class="group">
+                        <label>Correo electrónico</label>
+
+                        <input
+                            type="email"
+                            id="perfilCorreo"
+                            placeholder="correo@ejemplo.com"
+                            required
+                        >
+                    </div>
+
+                    <div class="group">
+                        <label>Teléfono</label>
+
+                        <input
+                            type="text"
+                            id="perfilTelefono"
+                            placeholder="999999999"
+                        >
+                    </div>
+
+                    <div class="group">
+                        <label>DNI / Documento</label>
+
+                        <input
+                            type="text"
+                            id="perfilDocumento"
+                            placeholder="12345678"
+                        >
+                    </div>
+
+                </div>
+
+                <div class="form-actions">
+
+                    <button type="submit" class="btn btn-green">
+                        Guardar Cambios
+                    </button>
+
+                </div>
+
+            </form>
+
+        </section>
+
+        <!-- SEGURIDAD -->
+        <section class="card">
+
+            <h2>Seguridad</h2>
+
+            <form id="formPassword">
+
+                <div class="form-grid">
+
+                    <div class="group">
+                        <label>Nueva contraseña</label>
+
+                        <input
+                            type="password"
+                            id="nuevaPassword"
+                            placeholder="Nueva contraseña"
+                        >
+                    </div>
+
+                    <div class="group">
+                        <label>Confirmar contraseña</label>
+
+                        <input
+                            type="password"
+                            id="confirmarPassword"
+                            placeholder="Confirmar contraseña"
+                        >
+                    </div>
+
+                </div>
+
+                <div class="form-actions">
+
+                    <button type="submit" class="btn btn-blue">
+                        Actualizar Contraseña
+                    </button>
+
+                </div>
+
+            </form>
+
+        </section>
+
+        <!-- INFORMACIÓN DEL SISTEMA -->
+        <section class="card">
+
+            <h2>Información del Sistema</h2>
+
+            <div class="perfil-info-grid">
+
+                <div class="info-box">
+
+                    <span class="info-label">
+                        Rol
+                    </span>
+
+                    <span class="info-value" id="infoRol">
+                        -
+                    </span>
+
+                </div>
+
+                <div class="info-box">
+
+                    <span class="info-label">
+                        Estado
+                    </span>
+
+                    <span class="info-value" id="infoEstado">
+                        Activo
+                    </span>
+
+                </div>
+
+                <div class="info-box">
+
+                    <span class="info-label">
+                        Fecha de registro
+                    </span>
+
+                    <span class="info-value" id="infoFechaRegistro">
+                        -
+                    </span>
+
+                </div>
+
+                <div class="info-box">
+
+                    <span class="info-label">
+                        Último acceso
+                    </span>
+
+                    <span class="info-value" id="infoUltimoAcceso">
+                        -
+                    </span>
+
+                </div>
+
+            </div>
+
+        </section>
+
+        <!-- EDIFICIOS -->
+        <section class="card" id="cardEdificios">
+
+            <h2>Edificios Vinculados</h2>
+
+            <div id="listaEdificios" class="chips-container">
+
+                <!-- dinámico -->
+
+            </div>
+
+        </section>
+
+        <!-- UNIDADES -->
+        <section class="card" id="cardUnidades">
+
+            <h2>Unidades Vinculadas</h2>
+
+            <div id="listaUnidades" class="chips-container">
+
+                <!-- dinámico -->
+
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- SCRIPTS -->
+    <script src="../../assets/js/components/sidebar.js"></script>
+    <script src="../../assets/js/core/storage.js"></script>
+    <script src="../../assets/js/core/data.js"></script>
+    <script src="../../assets/js/core/auth.js"></script>
+
+    <script src="../../assets/js/pages/perfil.js"></script>
+
+</body>
+</html>

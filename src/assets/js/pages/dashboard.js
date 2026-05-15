@@ -1,5 +1,17 @@
 document.addEventListener("DOMContentLoaded", () => {
     protegerPaginaAdmin();
+
+    asegurarFiltroEdificioDashboard();
+    asegurarColumnaEdificioTabla();
+
+    if (requierePrimeraConfiguracion()) {
+        cargarDashboardVacio();
+        configurarFiltros();
+        configurarModal();
+        mostrarModalPrimeraConfiguracion();
+        return;
+    }
+
     cargarDashboard();
     configurarFiltros();
     configurarModal();
@@ -24,48 +36,338 @@ function protegerPaginaAdmin() {
     }
 }
 
+function requierePrimeraConfiguracion() {
+    const sesion = JSON.parse(localStorage.getItem("usuarioSesion"));
+    const db = obtenerTodo();
+
+    if (!sesion) return false;
+
+    if (sesion.rol !== "admin" && sesion.rol !== "superadmin") {
+        return false;
+    }
+
+    const edificios = db.edificios || [];
+
+    if (edificios.length === 0) {
+        return true;
+    }
+
+    if (sesion.rol === "superadmin") {
+        return false;
+    }
+
+    const edificiosAsignados = obtenerIdsEdificiosAsignadosSesion(sesion);
+
+    if (edificiosAsignados.length === 0) {
+        return true;
+    }
+
+    const existeEdificioAsignado = edificios.some(edificio =>
+        edificiosAsignados.includes(String(edificio.id))
+    );
+
+    return !existeEdificioAsignado;
+}
+
+function mostrarModalPrimeraConfiguracion() {
+    const modal = document.getElementById("modalPrimeraConfiguracion");
+    const btnIr = document.getElementById("btnIrPrimeraConfig");
+    const btnCancelar = document.getElementById("btnCancelarPrimeraConfig");
+
+    if (!modal) {
+        const confirmar = confirm(
+            "Aún no tienes edificios configurados o asignados. ¿Deseas realizar la primera configuración?"
+        );
+
+        if (confirmar) {
+            window.location.href = "config.html";
+        }
+
+        return;
+    }
+
+    modal.style.display = "flex";
+
+    if (btnIr) {
+        btnIr.onclick = () => {
+            window.location.href = "config.html";
+        };
+    }
+
+    if (btnCancelar) {
+        btnCancelar.onclick = () => {
+            modal.style.display = "none";
+        };
+    }
+}
+
+function cargarDashboardVacio() {
+    setText("tituloEdificio", "Dashboard Administrador");
+
+    setText("totalUnidades", 0);
+    setText("totalDepartamentos", 0);
+    setText("totalEstacionamientos", 0);
+    setText("totalDepositos", 0);
+    setText("totalOficinas", 0);
+    setText("unidadesOcupadas", 0);
+    setText("unidadesDisponibles", 0);
+    setText("unidadesMantenimiento", 0);
+    setText("porcentajeOcupacion", "0%");
+
+    const filtroPiso = document.getElementById("filtroPiso");
+    if (filtroPiso) {
+        filtroPiso.innerHTML = `<option value="">Todos</option>`;
+    }
+
+    const filtroEdificio = document.getElementById("filtroEdificio");
+    if (filtroEdificio) {
+        filtroEdificio.innerHTML = `<option value="">Todos los edificios</option>`;
+    }
+
+    const tabla = document.getElementById("tablaUnidades");
+    if (tabla) {
+        tabla.innerHTML = `
+            <tr>
+                <td colspan="7">
+                    No hay edificios configurados o asignados. Realiza la primera configuración para comenzar.
+                </td>
+            </tr>
+        `;
+    }
+}
+
 function cargarDashboard() {
     const db = obtenerTodo();
 
     cargarTituloEdificio(db);
+    cargarFiltroEdificios(db);
     cargarFiltroPisos(db);
     actualizarEstadisticas(db);
     renderizarUnidades(db);
 }
 
-function obtenerEdificiosPermitidosDashboard() {
-    if (typeof obtenerEdificiosPermitidosSesion === "function") {
-        return obtenerEdificiosPermitidosSesion();
-    }
+function asegurarFiltroEdificioDashboard() {
+    if (document.getElementById("filtroEdificio")) return;
 
-    const sesion = JSON.parse(localStorage.getItem("usuarioSesion"));
-    const db = obtenerTodo();
+    const contenedor = document.querySelector(".form-group-container");
 
+    if (!contenedor) return;
+
+    const grupo = document.createElement("div");
+    grupo.className = "group";
+
+    grupo.innerHTML = `
+        <label for="filtroEdificio">Edificio</label>
+        <select id="filtroEdificio">
+            <option value="">Todos los edificios</option>
+        </select>
+    `;
+
+    contenedor.prepend(grupo);
+}
+
+function asegurarColumnaEdificioTabla() {
+    const tabla = document.querySelector("table");
+    const theadRow = tabla?.querySelector("thead tr");
+
+    if (!theadRow) return;
+
+    const yaExiste = Array.from(theadRow.children).some(th =>
+        th.textContent.trim().toLowerCase() === "edificio"
+    );
+
+    if (yaExiste) return;
+
+    const th = document.createElement("th");
+    th.textContent = "Edificio";
+
+    theadRow.insertBefore(th, theadRow.firstElementChild);
+}
+
+function obtenerIdsEdificiosAsignadosSesion(sesion) {
     if (!sesion) return [];
 
-    if (sesion.rol === "superadmin") {
-        return (db.edificios || []).map(edificio => String(edificio.id));
+    if (Array.isArray(sesion.edificioIds) && sesion.edificioIds.length > 0) {
+        return sesion.edificioIds.filter(Boolean).map(String);
     }
 
-    if (sesion.rol === "admin") {
-        return (sesion.edificioIds || [sesion.edificioId])
-            .filter(Boolean)
-            .map(String);
+    if (sesion.edificioId) {
+        return [String(sesion.edificioId)];
     }
 
     return [];
 }
 
-function obtenerUnidadesPermitidasDashboard(db) {
-    const permitidos = obtenerEdificiosPermitidosDashboard();
+function obtenerEdificiosPermitidosDashboard(db = obtenerTodo()) {
+    const sesion = JSON.parse(localStorage.getItem("usuarioSesion"));
 
-    if (permitidos.length === 0) {
-        return db.departamentos || [];
+    if (!sesion) return [];
+
+    const edificios = db.edificios || [];
+
+    if (sesion.rol === "superadmin") {
+        return edificios
+            .filter(edificio => edificio.activo !== false)
+            .map(edificio => String(edificio.id));
     }
 
-    return (db.departamentos || []).filter(unidad =>
-        permitidos.includes(String(unidad.edificioId || ""))
+    if (sesion.rol === "admin") {
+        const asignados = obtenerIdsEdificiosAsignadosSesion(sesion);
+
+        return edificios
+            .filter(edificio =>
+                edificio.activo !== false &&
+                asignados.includes(String(edificio.id))
+            )
+            .map(edificio => String(edificio.id));
+    }
+
+    return [];
+}
+
+function obtenerEdificiosVisiblesDashboard(db = obtenerTodo()) {
+    const permitidos = obtenerEdificiosPermitidosDashboard(db);
+
+    return (db.edificios || []).filter(edificio =>
+        permitidos.includes(String(edificio.id))
     );
+}
+
+function cargarFiltroEdificios(db) {
+    const select = document.getElementById("filtroEdificio");
+
+    if (!select) return;
+
+    const valorActual = localStorage.getItem("edifika_dashboard_filtro_edificio") || select.value || "";
+    const edificios = obtenerEdificiosVisiblesDashboard(db);
+
+    select.innerHTML = `<option value="">Todos los edificios</option>`;
+
+    edificios.forEach(edificio => {
+        select.innerHTML += `
+            <option value="${edificio.id}">
+                ${edificio.nombre}
+            </option>
+        `;
+    });
+
+    const existeValorActual = edificios.some(edificio =>
+        String(edificio.id) === String(valorActual)
+    );
+
+    select.value = existeValorActual ? valorActual : "";
+}
+
+function obtenerUnidadesPermitidasDashboard(db) {
+    const permitidos = obtenerEdificiosPermitidosDashboard(db);
+
+    if (permitidos.length === 0) {
+        return [];
+    }
+
+    const unidadesBase = [];
+
+    const departamentos = db.departamentos || [];
+    departamentos.forEach(unidad => {
+        unidadesBase.push(normalizarUnidadDashboard(unidad));
+    });
+
+    const unidadesGeneradas = db.unidadesGeneradas || [];
+    unidadesGeneradas.forEach(unidad => {
+        unidadesBase.push(normalizarUnidadDashboard(unidad));
+    });
+
+    const mapa = new Map();
+
+    unidadesBase.forEach(unidad => {
+        if (!unidad.edificioId) return;
+
+        const clave = `${unidad.edificioId}_${unidad.numero}_${unidad.tipo}`;
+
+        if (!mapa.has(clave)) {
+            mapa.set(clave, unidad);
+        } else {
+            const existente = mapa.get(clave);
+
+            mapa.set(clave, {
+                ...unidad,
+                ...existente,
+                id: existente.id || unidad.id,
+                numero: existente.numero || unidad.numero,
+                codigo: existente.codigo || unidad.codigo,
+                edificioId: existente.edificioId || unidad.edificioId
+            });
+        }
+    });
+
+    return Array.from(mapa.values()).filter(unidad =>
+        permitidos.includes(String(unidad.edificioId))
+    );
+}
+
+function normalizarUnidadDashboard(unidad) {
+    const numero = unidad.numero || unidad.codigo || unidad.nombre || "-";
+    const tipo = normalizarTipoUnidad(unidad.tipo);
+
+    return {
+        ...unidad,
+        id: unidad.id || `${unidad.edificioId || "sin-edificio"}_${numero}_${tipo}`,
+        numero,
+        codigo: unidad.codigo || numero,
+        tipo,
+        piso: unidad.piso || unidad.ubicacion || "",
+        edificioId: unidad.edificioId || "",
+        estado: unidad.estado || "disponible",
+        autorizados: unidad.autorizados || []
+    };
+}
+
+function obtenerUnidadesFiltradasDashboard(db) {
+    let unidades = [...obtenerUnidadesPermitidasDashboard(db)];
+
+    const filtroEdificio = document.getElementById("filtroEdificio")?.value || "";
+    const busqueda = document.getElementById("filtroBusqueda")?.value.trim().toUpperCase() || "";
+    const piso = document.getElementById("filtroPiso")?.value || "";
+    const tipo = document.getElementById("filtroTipo")?.value || "";
+    const estado = document.getElementById("filtroEstado")?.value || "";
+
+    if (filtroEdificio) {
+        unidades = unidades.filter(u =>
+            String(u.edificioId) === String(filtroEdificio)
+        );
+    }
+
+    if (busqueda) {
+        unidades = unidades.filter(u => {
+            const edificio = obtenerNombreEdificio(db, u.edificioId).toUpperCase();
+
+            return (
+                String(u.numero || "").toUpperCase().includes(busqueda) ||
+                String(u.codigo || "").toUpperCase().includes(busqueda) ||
+                edificio.includes(busqueda)
+            );
+        });
+    }
+
+    if (piso) {
+        unidades = unidades.filter(u =>
+            String(u.piso) === String(piso)
+        );
+    }
+
+    if (tipo) {
+        unidades = unidades.filter(u =>
+            normalizarTipoUnidad(u.tipo) === tipo
+        );
+    }
+
+    if (estado) {
+        unidades = unidades.filter(u =>
+            obtenerEstadoRealUnidad(u) === estado
+        );
+    }
+
+    return unidades;
 }
 
 function cargarTituloEdificio(db) {
@@ -74,31 +376,57 @@ function cargarTituloEdificio(db) {
     if (!titulo) return;
 
     const sesion = JSON.parse(localStorage.getItem("usuarioSesion"));
-    const permitidos = obtenerEdificiosPermitidosDashboard();
+    const edificios = obtenerEdificiosVisiblesDashboard(db);
+    const filtroEdificio = document.getElementById("filtroEdificio")?.value || "";
 
-    if (sesion?.rol === "superadmin") {
-        titulo.textContent = "Dashboard General - Superadministrador";
+    if (filtroEdificio) {
+        const edificio = edificios.find(e => String(e.id) === String(filtroEdificio));
+        titulo.textContent = edificio
+            ? `Dashboard - ${edificio.nombre}`
+            : "Dashboard Administrador";
         return;
     }
 
-    const edificios = (db.edificios || [])
-        .filter(edificio => permitidos.includes(String(edificio.id)))
-        .map(edificio => edificio.nombre);
+    if (sesion?.rol === "superadmin") {
+        titulo.textContent = edificios.length > 0
+            ? `Dashboard General - Superadministrador (${edificios.length} edificios activos)`
+            : "Dashboard General - Superadministrador";
+        return;
+    }
 
     titulo.textContent = edificios.length > 0
-        ? `Dashboard - ${edificios.join(", ")}`
+        ? `Dashboard - ${edificios.map(e => e.nombre).join(", ")}`
         : "Dashboard Administrador";
 }
 
 function configurarFiltros() {
-    const filtros = ["filtroBusqueda", "filtroPiso", "filtroTipo", "filtroEstado"];
+    const filtros = ["filtroEdificio", "filtroBusqueda", "filtroPiso", "filtroTipo", "filtroEstado"];
 
     filtros.forEach(id => {
         const elemento = document.getElementById(id);
 
         if (elemento) {
-            elemento.addEventListener("input", () => renderizarUnidades(obtenerTodo()));
-            elemento.addEventListener("change", () => renderizarUnidades(obtenerTodo()));
+            elemento.addEventListener("input", () => {
+                if (id === "filtroEdificio") {
+                    localStorage.setItem("edifika_dashboard_filtro_edificio", elemento.value);
+                    cargarFiltroPisos(obtenerTodo());
+                    cargarTituloEdificio(obtenerTodo());
+                    actualizarEstadisticas(obtenerTodo());
+                }
+
+                renderizarUnidades(obtenerTodo());
+            });
+
+            elemento.addEventListener("change", () => {
+                if (id === "filtroEdificio") {
+                    localStorage.setItem("edifika_dashboard_filtro_edificio", elemento.value);
+                    cargarFiltroPisos(obtenerTodo());
+                    cargarTituloEdificio(obtenerTodo());
+                    actualizarEstadisticas(obtenerTodo());
+                }
+
+                renderizarUnidades(obtenerTodo());
+            });
         }
     });
 }
@@ -108,7 +436,8 @@ function cargarFiltroPisos(db) {
 
     if (!filtroPiso) return;
 
-    const unidades = obtenerUnidadesPermitidasDashboard(db);
+    const valorActual = filtroPiso.value;
+    const unidades = obtenerUnidadesFiltradasSoloEdificio(db);
 
     const ubicaciones = [...new Set(
         unidades
@@ -125,10 +454,28 @@ function cargarFiltroPisos(db) {
             </option>
         `;
     });
+
+    if (ubicaciones.includes(String(valorActual))) {
+        filtroPiso.value = valorActual;
+    }
+}
+
+function obtenerUnidadesFiltradasSoloEdificio(db) {
+    let unidades = [...obtenerUnidadesPermitidasDashboard(db)];
+
+    const filtroEdificio = document.getElementById("filtroEdificio")?.value || "";
+
+    if (filtroEdificio) {
+        unidades = unidades.filter(u =>
+            String(u.edificioId) === String(filtroEdificio)
+        );
+    }
+
+    return unidades;
 }
 
 function actualizarEstadisticas(db) {
-    const unidades = obtenerUnidadesPermitidasDashboard(db);
+    const unidades = obtenerUnidadesFiltradasDashboard(db);
 
     const total = unidades.length;
     const departamentos = unidades.filter(u => normalizarTipoUnidad(u.tipo) === "departamento").length;
@@ -158,38 +505,15 @@ function renderizarUnidades(db) {
 
     if (!tabla) return;
 
-    let unidades = [...obtenerUnidadesPermitidasDashboard(db)];
-
-    const busqueda = document.getElementById("filtroBusqueda")?.value.trim().toUpperCase() || "";
-    const piso = document.getElementById("filtroPiso")?.value || "";
-    const tipo = document.getElementById("filtroTipo")?.value || "";
-    const estado = document.getElementById("filtroEstado")?.value || "";
-
-    if (busqueda) {
-        unidades = unidades.filter(u =>
-            String(u.numero || "").toUpperCase().includes(busqueda)
-        );
-    }
-
-    if (piso) {
-        unidades = unidades.filter(u =>
-            String(u.piso) === String(piso)
-        );
-    }
-
-    if (tipo) {
-        unidades = unidades.filter(u =>
-            normalizarTipoUnidad(u.tipo) === tipo
-        );
-    }
-
-    if (estado) {
-        unidades = unidades.filter(u =>
-            obtenerEstadoRealUnidad(u) === estado
-        );
-    }
+    let unidades = obtenerUnidadesFiltradasDashboard(db);
 
     unidades.sort((a, b) => {
+        const edificioA = obtenerNombreEdificio(db, a.edificioId);
+        const edificioB = obtenerNombreEdificio(db, b.edificioId);
+
+        const comparacionEdificio = edificioA.localeCompare(edificioB);
+        if (comparacionEdificio !== 0) return comparacionEdificio;
+
         const pisoA = ordenarPiso(a.piso);
         const pisoB = ordenarPiso(b.piso);
 
@@ -201,7 +525,7 @@ function renderizarUnidades(db) {
     if (unidades.length === 0) {
         tabla.innerHTML = `
             <tr>
-                <td colspan="6">No hay unidades registradas con esos filtros.</td>
+                <td colspan="7">No hay unidades registradas con esos filtros.</td>
             </tr>
         `;
         return;
@@ -209,9 +533,11 @@ function renderizarUnidades(db) {
 
     tabla.innerHTML = unidades.map(unidad => {
         const estadoUnidad = obtenerEstadoRealUnidad(unidad);
+        const edificio = obtenerNombreEdificio(db, unidad.edificioId);
 
         return `
             <tr>
+                <td>${edificio}</td>
                 <td><strong>${unidad.numero}</strong></td>
                 <td>${formatearPiso(unidad.piso)}</td>
                 <td>${formatearTipoUnidad(unidad.tipo)}</td>
@@ -239,7 +565,7 @@ function verDetalleUnidad(id) {
     );
 
     if (!unidad) {
-        alert("Unidad no encontrada o no pertenece a tu edificio asignado.");
+        alert("Unidad no encontrada o no pertenece a tus edificios asignados.");
         return;
     }
 
@@ -349,6 +675,14 @@ function obtenerEstadoRealUnidad(unidad) {
     return "disponible";
 }
 
+function obtenerNombreEdificio(db, edificioId) {
+    const edificio = (db.edificios || []).find(e =>
+        String(e.id) === String(edificioId)
+    );
+
+    return edificio ? edificio.nombre : "-";
+}
+
 function normalizarTipoUnidad(tipo) {
     const valor = String(tipo || "").toLowerCase().trim();
 
@@ -393,11 +727,16 @@ function formatearEstadoUnidad(estado) {
 
 function claseEstado(estado) {
     if (estado === "disponible") return "vacio";
+    if (estado === "mantenimiento") return "pendiente";
+    if (estado === "inactiva") return "inactivo";
+
     return "ocupado";
 }
 
 function formatearPiso(piso) {
     const valor = String(piso || "");
+
+    if (!valor) return "-";
 
     if (valor.startsWith("S")) {
         return `Sótano ${valor.replace("S", "")}`;
@@ -413,7 +752,7 @@ function ordenarPiso(piso) {
         return -Number(valor.replace("S", ""));
     }
 
-    return Number(valor);
+    return Number(valor) || 0;
 }
 
 function capitalizar(texto) {

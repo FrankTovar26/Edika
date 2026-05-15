@@ -46,8 +46,13 @@ function inicializarEdificios() {
     db.edificios.forEach(edificio => {
         edificio.administradoresIds = edificio.administradoresIds || [];
         edificio.creadoPor = edificio.creadoPor || obtenerSesionId();
+
+        if (typeof edificio.activo === "undefined") {
+            edificio.activo = true;
+        }
     });
 
+    actualizarConfiguracionEdificiosActivos(db);
     guardarTodo(db);
 }
 
@@ -492,17 +497,13 @@ function registrarEdificio(datos) {
         configuracionAvanzada: datos.configuracionAvanzada || [],
         administradoresIds: [],
         creadoPor: sesion?.id || "sistema",
-        activo: db.edificios.length === 0,
+        activo: true,
         fechaCreacion: new Date().toISOString()
     };
 
     db.edificios.push(nuevoEdificio);
 
-    if (nuevoEdificio.activo) {
-        db.configEdificio = crearConfigDesdeEdificio(nuevoEdificio);
-        localStorage.setItem("edifika_edificio_activo", nuevoEdificio.id);
-    }
-
+    actualizarConfiguracionEdificiosActivos(db);
     guardarTodo(db);
 
     alert("Edificio registrado correctamente. Ahora puedes generar su nomenclatura o asignar administradores.");
@@ -533,10 +534,7 @@ function editarEdificio(id, datos) {
     edificio.configuracionAvanzada = datos.configuracionAvanzada || [];
     edificio.administradoresIds = edificio.administradoresIds || [];
 
-    if (edificio.activo) {
-        db.configEdificio = crearConfigDesdeEdificio(edificio);
-    }
-
+    actualizarConfiguracionEdificiosActivos(db);
     guardarTodo(db);
 
     alert("Edificio actualizado correctamente.");
@@ -746,7 +744,9 @@ function obtenerEdificiosVisibles(db) {
     }
 
     if (sesion.rol === "admin") {
-        const permitidos = (sesion.edificioIds || [sesion.edificioId]).filter(Boolean).map(String);
+        const permitidos = (sesion.edificioIds || [sesion.edificioId])
+            .filter(Boolean)
+            .map(String);
 
         return (db.edificios || []).filter(edificio =>
             permitidos.includes(String(edificio.id))
@@ -873,12 +873,9 @@ function activarEdificio(id) {
 
     if (!edificio) return;
 
-    db.edificios.forEach(e => e.activo = false);
-
     edificio.activo = true;
-    db.configEdificio = crearConfigDesdeEdificio(edificio);
 
-    localStorage.setItem("edifika_edificio_activo", edificio.id);
+    actualizarConfiguracionEdificiosActivos(db);
 
     guardarTodo(db);
     renderizarEdificios();
@@ -892,13 +889,13 @@ function desactivarEdificio(id) {
 
     if (!edificio) return;
 
+    const confirmar = confirm(`¿Deseas desactivar el edificio "${edificio.nombre}"?`);
+
+    if (!confirmar) return;
+
     edificio.activo = false;
 
-    const activo = db.edificios.find(e => e.activo);
-
-    db.configEdificio = activo
-        ? crearConfigDesdeEdificio(activo)
-        : null;
+    actualizarConfiguracionEdificiosActivos(db);
 
     guardarTodo(db);
     renderizarEdificios();
@@ -923,6 +920,28 @@ function crearConfigDesdeEdificio(edificio) {
         depositosPorSotano: edificio.depositosPorSotano,
         configuracionAvanzada: edificio.configuracionAvanzada || []
     };
+}
+
+function actualizarConfiguracionEdificiosActivos(db) {
+    const edificiosActivos = (db.edificios || []).filter(edificio => edificio.activo);
+
+    db.configEdificios = edificiosActivos.map(edificio =>
+        crearConfigDesdeEdificio(edificio)
+    );
+
+    db.configEdificio = edificiosActivos.length > 0
+        ? crearConfigDesdeEdificio(edificiosActivos[0])
+        : null;
+
+    const idsActivos = edificiosActivos.map(edificio => String(edificio.id));
+
+    localStorage.setItem("edifika_edificios_activos", JSON.stringify(idsActivos));
+
+    if (idsActivos.length > 0) {
+        localStorage.setItem("edifika_edificio_activo", idsActivos[0]);
+    } else {
+        localStorage.removeItem("edifika_edificio_activo");
+    }
 }
 
 function configurarFormularioAdministrador() {

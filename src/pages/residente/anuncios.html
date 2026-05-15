@@ -8,28 +8,7 @@
 </head>
 <body>
 
-<nav class="sidebar">
-    <h2>EDIFIKA</h2>
-
-    <div class="sidebar-menu">
-        <a href="inicio.html">🏠 Inicio</a>
-        <a href="mis-reservas.html">📅 Mis Reservas</a>
-        <a href="anuncios.html" class="active">
-            📢 Anuncios
-            <span id="contadorAnunciosPendientes" style="
-                display: none;
-                background: #2563eb;
-                color: white;
-                font-size: 0.75rem;
-                padding: 2px 7px;
-                border-radius: 999px;
-                margin-left: 6px;
-            ">0</span>
-        </a>
-        <a href="perfil.html">👤 Perfil</a>
-        <a href="../../../index.html">🚪 Cerrar sesión</a>
-    </div>
-</nav>
+<nav id="sidebar"></nav>
 
 <main>
     <h1>Anuncios del edificio</h1>
@@ -90,6 +69,7 @@
     </div>
 </div>
 
+<script src="../../assets/js/components/sidebar.js"></script>
 <script src="../../assets/js/core/data.js"></script>
 <script src="../../assets/js/pages/anuncios-residente.js"></script>
 </body>
