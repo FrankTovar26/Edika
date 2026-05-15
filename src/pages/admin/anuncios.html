@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anuncios - EDIFIKA</title>
+    <link rel="stylesheet" href="../../assets/css/style.css">
+</head>
+<body>
+
+<nav class="sidebar">
+    <h2>EDIFIKA</h2>
+
+    <div class="sidebar-menu">
+        <a href="dashboard.html">🏠 Dashboard</a>
+        <a href="departamentos.html">🏢 Unidades</a>
+        <a href="vinculacion.html">📩 Invitaciones</a>
+        <a href="anuncios.html" class="active">📢 Anuncios</a>
+        <a href="areas.html">🌳 Áreas Comunes</a>
+        <a href="config.html">⚙️ Configuración</a>
+        <a href="../residente/inicio.html">🏠 Vista Usuario</a>
+        <a href="../../../index.html">🚪 Cerrar sesión</a>
+    </div>
+</nav>
+
+<main>
+    <h1>Gestión de Anuncios</h1>
+
+    <section class="card">
+        <h2>Crear / Editar anuncio</h2>
+
+        <form id="formAnuncio">
+            <input type="hidden" id="anuncioId">
+
+            <div class="form-group-container">
+                <div class="group">
+                    <label for="tituloAnuncio">Título</label>
+                    <input type="text" id="tituloAnuncio" required>
+                </div>
+
+                <div class="group">
+                    <label for="fechaAnuncio">Fecha</label>
+                    <input type="date" id="fechaAnuncio" required>
+                </div>
+            </div>
+
+            <div class="group" style="margin-top: 10px;">
+                <label for="descripcionAnuncio">Descripción</label>
+                <textarea 
+                    id="descripcionAnuncio" 
+                    rows="6" 
+                    required
+                    style="resize: vertical; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-family: inherit;"
+                ></textarea>
+            </div>
+
+            <div class="group" style="margin-top: 10px;">
+                <label for="archivoAnuncio">Archivo adjunto PDF/imagen máx. 5 MB</label>
+                <input 
+                    type="file" 
+                    id="archivoAnuncio" 
+                    accept=".pdf,image/*"
+                >
+                <small id="archivoActual" style="color: #666;"></small>
+            </div>
+
+            <div style="margin-top: 15px;">
+                <button type="button" id="btnGuardarBorrador" class="btn">
+                    Guardar borrador
+                </button>
+
+                <button type="button" id="btnPublicar" class="btn btn-blue">
+                    Publicar
+                </button>
+
+                <button type="button" id="btnCancelarEdicion" class="btn btn-red">
+                    Cancelar edición
+                </button>
+            </div>
+        </form>
+    </section>
+
+    <section class="card">
+        <h2>Anuncios registrados</h2>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Título</th>
+                        <th>Fecha</th>
+                        <th>Estado</th>
+                        <th>Archivo</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaAnuncios"></tbody>
+            </table>
+        </div>
+    </section>
+</main>
+
+<div id="modalPreviewAnuncio" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" id="cerrarPreview">&times;</span>
+        <h2>Vista previa del anuncio</h2>
+
+        <div id="previewContenido"></div>
+
+        <div style="margin-top: 20px;">
+            <button id="btnConfirmarPublicacion" class="btn btn-green">
+                Confirmar publicación
+            </button>
+
+            <button id="btnCancelarPublicacion" class="btn btn-red">
+                Cancelar
+            </button>
+        </div>
+    </div>
+</div>
+
+<script src="../../assets/js/core/data.js"></script>
+<script src="../../assets/js/pages/anuncios.js"></script>
+</body>
+</html>
