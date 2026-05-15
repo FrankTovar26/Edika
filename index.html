@@ -9,66 +9,139 @@
 </head>
 <body class="login-body">
 
-    <main class="auth-container">
+    <main class="auth-layout">
 
-        <section id="loginView" class="card auth-card">
-            <h1>EDIFIKA</h1>
-            <h2>Acceso al sistema</h2>
+        <section class="auth-hero">
+            <div class="auth-brand">
+                <div class="auth-logo">🏢</div>
+                <h1>EDIFIKA</h1>
+                <p>Gestión inteligente para edificios, residentes y áreas comunes.</p>
+            </div>
 
-            <form id="loginForm">
-                <div class="group">
-                    <label for="emailLogin">Correo</label>
-                    <input type="email" id="emailLogin" required>
+            <div class="auth-benefits">
+                <div class="auth-benefit">
+                    <span>📢</span>
+                    <p>Anuncios centralizados para residentes.</p>
                 </div>
 
-                <div class="group">
-                    <label for="passwordLogin">Clave</label>
-                    <input type="password" id="passwordLogin" required>
+                <div class="auth-benefit">
+                    <span>🌳</span>
+                    <p>Reservas de áreas comunes en pocos pasos.</p>
                 </div>
 
-                <button type="submit" class="btn btn-blue auth-btn">
-                    Entrar
-                </button>
-            </form>
-
-            <button type="button" id="showRegisterBtn" class="btn auth-link">
-                Activar cuenta
-            </button>
+                <div class="auth-benefit">
+                    <span>🏠</span>
+                    <p>Administración multi-edificio desde una sola plataforma.</p>
+                </div>
+            </div>
         </section>
 
-        <section id="registerView" class="card auth-card hidden">
-            <h1>EDIFIKA</h1>
-            <h2>Activar cuenta</h2>
+        <section class="auth-panel">
 
-            <form id="registerForm">
-                <div class="group">
-                    <label for="registerEmail">Correo de invitación</label>
-                    <input type="email" id="registerEmail" required>
+            <section id="loginView" class="card auth-card">
+                <div class="auth-card-header">
+                    <h1>Bienvenido</h1>
+                    <p>Ingresa tus credenciales para acceder a EDIFIKA.</p>
                 </div>
 
-                <div class="group">
-                    <label for="registerName">Nombre</label>
-                    <input type="text" id="registerName" required>
+                <form id="loginForm">
+                    <div class="group">
+                        <label for="emailLogin">Correo electrónico</label>
+                        <input 
+                            type="email" 
+                            id="emailLogin" 
+                            placeholder="correo@ejemplo.com"
+                            autocomplete="email"
+                            required
+                        >
+                    </div>
+
+                    <div class="group">
+                        <label for="passwordLogin">Contraseña</label>
+                        <input 
+                            type="password" 
+                            id="passwordLogin" 
+                            placeholder="Ingresa tu contraseña"
+                            autocomplete="current-password"
+                            required
+                        >
+                    </div>
+
+                    <button type="submit" class="btn btn-blue auth-btn">
+                        Entrar al sistema
+                    </button>
+                </form>
+
+                <div class="auth-divider">
+                    <span>¿Recibiste una invitación?</span>
                 </div>
 
-                <div class="group">
-                    <label for="registerDni">DNI</label>
-                    <input type="text" id="registerDni" required>
-                </div>
-
-                <div class="group">
-                    <label for="registerPassword">Nueva clave</label>
-                    <input type="password" id="registerPassword" required>
-                </div>
-
-                <button type="submit" class="btn btn-green auth-btn">
-                    Activar
+                <button type="button" id="showRegisterBtn" class="btn auth-link">
+                    Activar cuenta
                 </button>
-            </form>
+            </section>
 
-            <button type="button" id="showLoginBtn" class="btn auth-link">
-                Volver al login
-            </button>
+            <section id="registerView" class="card auth-card hidden">
+                <div class="auth-card-header">
+                    <h1>Activar cuenta</h1>
+                    <p>Completa tus datos usando el correo de invitación recibido.</p>
+                </div>
+
+                <form id="registerForm">
+                    <div class="group">
+                        <label for="registerEmail">Correo de invitación</label>
+                        <input 
+                            type="email" 
+                            id="registerEmail" 
+                            placeholder="correo@ejemplo.com"
+                            autocomplete="email"
+                            required
+                        >
+                    </div>
+
+                    <div class="group">
+                        <label for="registerName">Nombre completo</label>
+                        <input 
+                            type="text" 
+                            id="registerName" 
+                            placeholder="Ej: Juan Pérez"
+                            autocomplete="name"
+                            required
+                        >
+                    </div>
+
+                    <div class="group">
+                        <label for="registerDni">DNI</label>
+                        <input 
+                            type="text" 
+                            id="registerDni" 
+                            placeholder="Ej: 12345678"
+                            maxlength="8"
+                            required
+                        >
+                    </div>
+
+                    <div class="group">
+                        <label for="registerPassword">Nueva contraseña</label>
+                        <input 
+                            type="password" 
+                            id="registerPassword" 
+                            placeholder="Crea una contraseña segura"
+                            autocomplete="new-password"
+                            required
+                        >
+                    </div>
+
+                    <button type="submit" class="btn btn-green auth-btn">
+                        Activar mi cuenta
+                    </button>
+                </form>
+
+                <button type="button" id="showLoginBtn" class="btn auth-link">
+                    Volver al login
+                </button>
+            </section>
+
         </section>
 
     </main>
