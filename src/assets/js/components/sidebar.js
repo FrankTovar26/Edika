@@ -170,6 +170,12 @@ function obtenerMenuResidenteSidebar() {
             paginas: ["mis-incidencias.html"]
         },
         {
+            texto: "Mis Pagos",
+            icono: "💳",
+            href: "../residente/mis-pagos.html",
+            paginas: ["mis-pagos.html"]
+        },
+        {
             texto: "Cerrar sesión",
             icono: "🚪",
             href: "#",

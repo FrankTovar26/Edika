@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>En construcción - EDIFIKA</title>
+    <title>Pagos - EDIFIKA</title>
 
     <link rel="stylesheet" href="../../assets/css/style.css">
 </head>
@@ -12,25 +12,390 @@
 <nav id="sidebar"></nav>
 
 <main>
-    <section class="card construction-card">
-        <div class="construction-content">
-            <div class="construction-icon">🏗️</div>
-
-            <h1>Módulo en construcción</h1>
-
-            <p>
-                Esta sección todavía se encuentra en desarrollo.
-                Pronto estará disponible para gestionar esta funcionalidad dentro de EDIFIKA.
+    <section class="page-header">
+        <div>
+            <h1>Gestión de Pagos</h1>
+            <p class="page-subtitle">
+                Genera cuotas, controla pagos pendientes y valida comprobantes de residentes.
             </p>
+        </div>
+    </section>
 
-            <a href="../admin/dashboard.html" class="btn btn-blue">
-                Volver al Dashboard
-            </a>
+    <!-- RESUMEN -->
+    <section class="stats-grid">
+        <div class="card stat-card">
+            <span class="stat-kpi-icon">TF</span>
+            <span class="stat-number" id="totalFacturado">S/ 0.00</span>
+            <label>Total facturado</label>
+        </div>
+
+        <div class="card stat-card">
+            <span class="stat-kpi-icon success">TC</span>
+            <span class="stat-number" id="totalCobrado">S/ 0.00</span>
+            <label>Total cobrado</label>
+        </div>
+
+        <div class="card stat-card">
+            <span class="stat-kpi-icon danger">TP</span>
+            <span class="stat-number" id="totalPendiente">S/ 0.00</span>
+            <label>Total pendiente</label>
+        </div>
+
+        <div class="card stat-card">
+            <span class="stat-kpi-icon warning">PE</span>
+            <span class="stat-number" id="cuotasPendientes">0</span>
+            <label>Cuotas pendientes</label>
+        </div>
+
+        <div class="card stat-card">
+            <span class="stat-kpi-icon danger">VE</span>
+            <span class="stat-number" id="cuotasVencidas">0</span>
+            <label>Cuotas vencidas</label>
+        </div>
+
+        <div class="card stat-card">
+            <span class="stat-kpi-icon success">%</span>
+            <span class="stat-number" id="porcentajeCobranza">0%</span>
+            <label>Cobranza</label>
+        </div>
+    </section>
+
+    <!-- GENERAR CUOTAS -->
+    <section class="card">
+        <div class="section-header">
+            <div>
+                <h2>Generar cuota</h2>
+                <p class="section-subtitle">
+                    Crea una cuota masiva para todas las unidades activas o una cuota individual.
+                </p>
+            </div>
+        </div>
+
+        <form id="formGenerarCuota">
+            <div class="form-group-container">
+                <div class="group">
+                    <label for="edificioCuota">Edificio</label>
+                    <select id="edificioCuota" required>
+                        <option value="">Seleccione edificio...</option>
+                    </select>
+                </div>
+
+                <div class="group">
+                    <label for="alcanceCuota">Aplicar a</label>
+                    <select id="alcanceCuota" required>
+                        <option value="masiva">Todas las unidades activas</option>
+                        <option value="individual">Una unidad específica</option>
+                    </select>
+                </div>
+
+                <div class="group" id="grupoUnidadCuota">
+                    <label for="unidadCuota">Unidad</label>
+                    <select id="unidadCuota">
+                        <option value="">Seleccione unidad...</option>
+                    </select>
+                </div>
+
+                <div class="group">
+                    <label for="tipoCuota">Tipo</label>
+                    <select id="tipoCuota" required>
+                        <option value="mantenimiento">Mantenimiento</option>
+                        <option value="agua">Agua</option>
+                        <option value="luz_comun">Luz común</option>
+                        <option value="seguridad">Seguridad</option>
+                        <option value="limpieza">Limpieza</option>
+                        <option value="multa">Multa</option>
+                        <option value="extraordinaria">Extraordinaria</option>
+                        <option value="reserva">Reserva</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group-container">
+                <div class="group">
+                    <label for="conceptoCuota">Concepto</label>
+                    <input 
+                        type="text" 
+                        id="conceptoCuota" 
+                        placeholder="Ej: Mantenimiento Mayo 2026"
+                        required
+                    >
+                </div>
+
+                <div class="group">
+                    <label for="periodoCuota">Periodo</label>
+                    <input 
+                        type="month" 
+                        id="periodoCuota"
+                        required
+                    >
+                </div>
+
+                <div class="group">
+                    <label for="montoCuota">Monto</label>
+                    <input 
+                        type="number" 
+                        id="montoCuota"
+                        min="0.01"
+                        step="0.01"
+                        placeholder="0.00"
+                        required
+                    >
+                </div>
+
+                <div class="group">
+                    <label for="fechaVencimientoCuota">Fecha vencimiento</label>
+                    <input 
+                        type="date" 
+                        id="fechaVencimientoCuota"
+                        required
+                    >
+                </div>
+            </div>
+
+            <div class="form-group-container">
+                <div class="group">
+                    <label for="observacionCuota">Observación</label>
+                    <textarea
+                        id="observacionCuota"
+                        placeholder="Ej: Pago mensual de mantenimiento del edificio."
+                    ></textarea>
+                </div>
+
+                <div class="group">
+                    <label for="comprobanteBaseCuota">Recibo base / sustento</label>
+                    <input 
+                        type="file" 
+                        id="comprobanteBaseCuota"
+                        accept="image/*,.pdf"
+                    >
+                    <small class="form-help">
+                        Puedes adjuntar imagen o PDF como sustento.
+                    </small>
+                </div>
+
+                <div class="group" style="justify-content: flex-end;">
+                    <button type="submit" class="btn btn-blue">
+                        Generar cuota
+                    </button>
+                </div>
+            </div>
+
+            <div id="alertaDuplicadosCuota" class="alert-box hidden">
+                <!-- Se llena con JS -->
+            </div>
+        </form>
+    </section>
+
+    <!-- FILTROS CUOTAS -->
+    <section class="card">
+        <div class="section-header">
+            <div>
+                <h2>Filtros de cuotas</h2>
+                <p class="section-subtitle">
+                    Consulta cuotas por edificio, periodo, estado, tipo o unidad.
+                </p>
+            </div>
+
+            <button type="button" class="btn btn-secondary" id="btnLimpiarFiltrosCuotas">
+                Limpiar filtros
+            </button>
+        </div>
+
+        <div class="form-group-container">
+            <div class="group">
+                <label for="filtroEdificioCuota">Edificio</label>
+                <select id="filtroEdificioCuota">
+                    <option value="">Todos los edificios</option>
+                </select>
+            </div>
+
+            <div class="group">
+                <label for="filtroPeriodoCuota">Periodo</label>
+                <input type="month" id="filtroPeriodoCuota">
+            </div>
+
+            <div class="group">
+                <label for="filtroTipoCuota">Tipo</label>
+                <select id="filtroTipoCuota">
+                    <option value="">Todos</option>
+                    <option value="mantenimiento">Mantenimiento</option>
+                    <option value="agua">Agua</option>
+                    <option value="luz_comun">Luz común</option>
+                    <option value="seguridad">Seguridad</option>
+                    <option value="limpieza">Limpieza</option>
+                    <option value="multa">Multa</option>
+                    <option value="extraordinaria">Extraordinaria</option>
+                    <option value="reserva">Reserva</option>
+                    <option value="otro">Otro</option>
+                </select>
+            </div>
+
+            <div class="group">
+                <label for="filtroEstadoCuota">Estado</label>
+                <select id="filtroEstadoCuota">
+                    <option value="">Todos</option>
+                    <option value="pendiente">Pendiente</option>
+                    <option value="vencido">Vencido</option>
+                    <option value="observado">Comprobante enviado</option>
+                    <option value="pagado">Pagado</option>
+                    <option value="anulado">Anulado</option>
+                </select>
+            </div>
+
+            <div class="group">
+                <label for="busquedaCuota">Buscar</label>
+                <input 
+                    type="text" 
+                    id="busquedaCuota"
+                    placeholder="Concepto, unidad..."
+                >
+            </div>
+        </div>
+    </section>
+
+    <!-- CUOTAS REGISTRADAS -->
+    <section class="card">
+        <div class="section-header">
+            <div>
+                <h2>Cuotas registradas</h2>
+                <p class="section-subtitle">
+                    Controla cuotas pendientes, vencidas, observadas, pagadas o anuladas.
+                </p>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Concepto</th>
+                        <th>Edificio</th>
+                        <th>Unidad</th>
+                        <th>Tipo</th>
+                        <th>Periodo</th>
+                        <th>Monto</th>
+                        <th>Vencimiento</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+
+                <tbody id="tablaCuotasAdmin">
+                    <tr>
+                        <td colspan="9">Cargando cuotas...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- COMPROBANTES -->
+    <section class="card">
+        <div class="section-header">
+            <div>
+                <h2>Comprobantes enviados</h2>
+                <p class="section-subtitle">
+                    Valida o rechaza comprobantes enviados por residentes.
+                </p>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Unidad</th>
+                        <th>Cuota</th>
+                        <th>Banco / Medio</th>
+                        <th>Operación</th>
+                        <th>Fecha pago</th>
+                        <th>Monto</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+
+                <tbody id="tablaComprobantesAdmin">
+                    <tr>
+                        <td colspan="8">Cargando comprobantes...</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </section>
 </main>
 
+<!-- MODAL DETALLE CUOTA -->
+<div id="modalDetalleCuota" class="modal">
+    <div class="modal-content modal-content-wide">
+        <span class="close-btn" id="cerrarModalDetalleCuota">&times;</span>
+
+        <h2>Detalle de cuota</h2>
+
+        <div id="detalleCuotaAdmin">
+            <!-- Se llena con JS -->
+        </div>
+    </div>
+</div>
+
+<!-- MODAL VALIDAR PAGO -->
+<div id="modalValidarPago" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" id="cerrarModalValidarPago">&times;</span>
+
+        <h2>Validar comprobante</h2>
+
+        <input type="hidden" id="pagoValidacionId">
+
+        <div class="group">
+            <label for="accionValidacionPago">Acción</label>
+            <select id="accionValidacionPago" required>
+                <option value="">Seleccione acción...</option>
+                <option value="aprobar">Aprobar pago</option>
+                <option value="rechazar">Rechazar pago</option>
+            </select>
+        </div>
+
+        <div class="group" style="margin-top: 12px;">
+            <label for="observacionValidacionPago">Observación para el residente</label>
+            <textarea
+                id="observacionValidacionPago"
+                placeholder="Ej: Pago validado correctamente / El comprobante no corresponde al monto indicado."
+                required
+            ></textarea>
+        </div>
+
+        <div class="form-actions" style="justify-content: flex-end;">
+            <button type="button" class="btn btn-secondary" id="btnCancelarValidacionPago">
+                Cancelar
+            </button>
+
+            <button type="button" class="btn btn-blue" id="btnConfirmarValidacionPago">
+                Guardar validación
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL VER COMPROBANTE -->
+<div id="modalComprobantePago" class="modal">
+    <div class="modal-content modal-content-wide">
+        <span class="close-btn" id="cerrarModalComprobantePago">&times;</span>
+
+        <h2>Comprobante</h2>
+
+        <div id="visorComprobantePago">
+            <!-- Se llena con JS -->
+        </div>
+    </div>
+</div>
+
 <script src="../../assets/js/core/data.js"></script>
+<script src="../../assets/js/services/anuncios.service.js"></script>
+<script src="../../assets/js/services/pagos.service.js"></script>
 <script src="../../assets/js/components/sidebar.js"></script>
+<script src="../../assets/js/pages/pagos.js"></script>
+
 </body>
 </html>

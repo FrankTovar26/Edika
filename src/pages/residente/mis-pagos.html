@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mis Pagos - EDIFIKA</title>
+
+    <link rel="stylesheet" href="../../assets/css/style.css">
+</head>
+<body>
+
+<nav id="sidebar"></nav>
+
+<main>
+
+    <!-- HEADER -->
+    <section class="page-header">
+        <div>
+            <h1>Mis Pagos</h1>
+
+            <p class="page-subtitle">
+                Consulta tus cuotas pendientes, pagos realizados y registra comprobantes de pago.
+            </p>
+        </div>
+    </section>
+
+    <!-- RESUMEN -->
+    <section class="stats-grid">
+
+        <div class="card stat-card">
+            <span class="stat-kpi-icon">CT</span>
+            <span class="stat-number" id="totalCuotasResidente">0</span>
+            <label>Total cuotas</label>
+        </div>
+
+        <div class="card stat-card">
+            <span class="stat-kpi-icon warning">PE</span>
+            <span class="stat-number" id="cuotasPendientesResidente">0</span>
+            <label>Pendientes</label>
+        </div>
+
+        <div class="card stat-card">
+            <span class="stat-kpi-icon danger">VE</span>
+            <span class="stat-number" id="cuotasVencidasResidente">0</span>
+            <label>Vencidas</label>
+        </div>
+
+        <div class="card stat-card">
+            <span class="stat-kpi-icon success">PG</span>
+            <span class="stat-number" id="cuotasPagadasResidente">0</span>
+            <label>Pagadas</label>
+        </div>
+
+        <div class="card stat-card">
+            <span class="stat-kpi-icon">S/</span>
+            <span class="stat-number" id="totalPendienteResidente">
+                S/ 0.00
+            </span>
+            <label>Total pendiente</label>
+        </div>
+
+        <div class="card stat-card">
+            <span class="stat-kpi-icon success">OK</span>
+            <span class="stat-number" id="porcentajePagadoResidente">
+                0%
+            </span>
+            <label>Pagado</label>
+        </div>
+
+    </section>
+
+    <!-- ALERTA FINANCIERA -->
+    <section class="card" id="alertaEstadoFinanciero">
+
+        <div class="financial-status">
+
+            <div class="financial-status-icon">
+                💳
+            </div>
+
+            <div>
+                <h2>Estado financiero</h2>
+
+                <p id="mensajeEstadoFinanciero">
+                    Revisando estado financiero...
+                </p>
+            </div>
+
+        </div>
+
+    </section>
+
+    <!-- FILTROS -->
+    <section class="card">
+
+        <div class="section-header">
+
+            <div>
+                <h2>Filtros</h2>
+
+                <p class="section-subtitle">
+                    Filtra tus cuotas por estado, periodo o tipo.
+                </p>
+            </div>
+
+            <button
+                type="button"
+                class="btn btn-secondary"
+                id="btnLimpiarFiltrosPagos"
+            >
+                Limpiar filtros
+            </button>
+
+        </div>
+
+        <div class="form-group-container">
+
+            <div class="group">
+                <label for="filtroEstadoPagoResidente">
+                    Estado
+                </label>
+
+                <select id="filtroEstadoPagoResidente">
+                    <option value="">Todos</option>
+
+                    <option value="pendiente">Pendiente</option>
+                    <option value="vencido">Vencido</option>
+                    <option value="observado">Comprobante enviado</option>
+                    <option value="pagado">Pagado</option>
+                    <option value="anulado">Anulado</option>
+                </select>
+            </div>
+
+            <div class="group">
+                <label for="filtroPeriodoPagoResidente">
+                    Periodo
+                </label>
+
+                <input
+                    type="month"
+                    id="filtroPeriodoPagoResidente"
+                >
+            </div>
+
+            <div class="group">
+                <label for="filtroTipoPagoResidente">
+                    Tipo
+                </label>
+
+                <select id="filtroTipoPagoResidente">
+
+                    <option value="">Todos</option>
+
+                    <option value="mantenimiento">
+                        Mantenimiento
+                    </option>
+
+                    <option value="agua">
+                        Agua
+                    </option>
+
+                    <option value="luz_comun">
+                        Luz común
+                    </option>
+
+                    <option value="seguridad">
+                        Seguridad
+                    </option>
+
+                    <option value="limpieza">
+                        Limpieza
+                    </option>
+
+                    <option value="multa">
+                        Multa
+                    </option>
+
+                    <option value="extraordinaria">
+                        Extraordinaria
+                    </option>
+
+                    <option value="reserva">
+                        Reserva
+                    </option>
+
+                    <option value="otro">
+                        Otro
+                    </option>
+
+                </select>
+            </div>
+
+            <div class="group">
+                <label for="buscarPagoResidente">
+                    Buscar
+                </label>
+
+                <input
+                    type="text"
+                    id="buscarPagoResidente"
+                    placeholder="Concepto, periodo..."
+                >
+            </div>
+
+        </div>
+
+    </section>
+
+    <!-- TABLA CUOTAS -->
+    <section class="card">
+
+        <div class="section-header">
+
+            <div>
+                <h2>Mis cuotas</h2>
+
+                <p class="section-subtitle">
+                    Visualiza tus pagos pendientes y registra comprobantes.
+                </p>
+            </div>
+
+        </div>
+
+        <div class="table-container">
+
+            <table>
+
+                <thead>
+
+                    <tr>
+
+                        <th>Concepto</th>
+                        <th>Tipo</th>
+                        <th>Periodo</th>
+                        <th>Monto</th>
+                        <th>Vencimiento</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody id="tablaMisPagos">
+
+                    <tr>
+                        <td colspan="7">
+                            Cargando cuotas...
+                        </td>
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </section>
+
+    <!-- HISTORIAL -->
+    <section class="card">
+
+        <div class="section-header">
+
+            <div>
+                <h2>Historial de comprobantes</h2>
+
+                <p class="section-subtitle">
+                    Consulta los comprobantes registrados y su validación.
+                </p>
+            </div>
+
+        </div>
+
+        <div class="table-container">
+
+            <table>
+
+                <thead>
+
+                    <tr>
+
+                        <th>Cuota</th>
+                        <th>Banco</th>
+                        <th>Operación</th>
+                        <th>Fecha pago</th>
+                        <th>Monto</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody id="tablaHistorialPagos">
+
+                    <tr>
+                        <td colspan="7">
+                            Cargando comprobantes...
+                        </td>
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </section>
+
+</main>
+
+<!-- MODAL DETALLE CUOTA -->
+<div id="modalDetallePagoResidente" class="modal">
+
+    <div class="modal-content modal-content-wide">
+
+        <span
+            class="close-btn"
+            id="cerrarModalDetallePagoResidente"
+        >
+            &times;
+        </span>
+
+        <h2>Detalle de cuota</h2>
+
+        <div id="detallePagoResidente">
+            <!-- JS -->
+        </div>
+
+    </div>
+
+</div>
+
+<!-- MODAL REGISTRAR PAGO -->
+<div id="modalRegistrarPago" class="modal">
+
+    <div class="modal-content">
+
+        <span
+            class="close-btn"
+            id="cerrarModalRegistrarPago"
+        >
+            &times;
+        </span>
+
+        <h2>Registrar comprobante</h2>
+
+        <form id="formRegistrarPago">
+
+            <input
+                type="hidden"
+                id="cuotaPagoId"
+            >
+
+            <div class="group">
+
+                <label for="bancoPagoResidente">
+                    Banco / Medio
+                </label>
+
+                <input
+                    type="text"
+                    id="bancoPagoResidente"
+                    placeholder="Ej: BCP"
+                    required
+                >
+
+            </div>
+
+            <div class="group">
+
+                <label for="numeroOperacionPago">
+                    Número de operación
+                </label>
+
+                <input
+                    type="text"
+                    id="numeroOperacionPago"
+                    placeholder="Ej: 000123456"
+                    required
+                >
+
+            </div>
+
+            <div class="form-group-container">
+
+                <div class="group">
+
+                    <label for="fechaPagoResidente">
+                        Fecha de pago
+                    </label>
+
+                    <input
+                        type="date"
+                        id="fechaPagoResidente"
+                        required
+                    >
+
+                </div>
+
+                <div class="group">
+
+                    <label for="montoPagoResidente">
+                        Monto pagado
+                    </label>
+
+                    <input
+                        type="number"
+                        id="montoPagoResidente"
+                        min="0.01"
+                        step="0.01"
+                        placeholder="0.00"
+                        required
+                    >
+
+                </div>
+
+            </div>
+
+            <div class="group">
+
+                <label for="voucherPagoResidente">
+                    Voucher / comprobante
+                </label>
+
+                <input
+                    type="file"
+                    id="voucherPagoResidente"
+                    accept="image/*,.pdf"
+                    required
+                >
+
+                <small class="form-help">
+                    Formatos permitidos:
+                    JPG, PNG o PDF.
+                </small>
+
+            </div>
+
+            <div class="form-actions">
+
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    id="btnCancelarPagoResidente"
+                >
+                    Cancelar
+                </button>
+
+                <button
+                    type="submit"
+                    class="btn btn-blue"
+                >
+                    Enviar comprobante
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+<!-- MODAL VER COMPROBANTE -->
+<div id="modalVerVoucherResidente" class="modal">
+
+    <div class="modal-content modal-content-wide">
+
+        <span
+            class="close-btn"
+            id="cerrarModalVerVoucherResidente"
+        >
+            &times;
+        </span>
+
+        <h2>Comprobante registrado</h2>
+
+        <div id="visorVoucherResidente">
+            <!-- JS -->
+        </div>
+
+    </div>
+
+</div>
+
+<script src="../../assets/js/core/data.js"></script>
+<script src="../../assets/js/services/anuncios.service.js"></script>
+<script src="../../assets/js/services/pagos.service.js"></script>
+<script src="../../assets/js/components/sidebar.js"></script>
+<script src="../../assets/js/pages/mis-pagos.js"></script>
+
+</body>
+</html>
