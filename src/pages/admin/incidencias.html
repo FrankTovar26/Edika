@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>En construcción - EDIFIKA</title>
+    <title>Incidencias - EDIFIKA</title>
 
     <link rel="stylesheet" href="../../assets/css/style.css">
 </head>
@@ -12,25 +12,223 @@
 <nav id="sidebar"></nav>
 
 <main>
-    <section class="card construction-card">
-        <div class="construction-content">
-            <div class="construction-icon">🏗️</div>
-
-            <h1>Módulo en construcción</h1>
-
-            <p>
-                Esta sección todavía se encuentra en desarrollo.
-                Pronto estará disponible para gestionar esta funcionalidad dentro de EDIFIKA.
+    <section class="page-header">
+        <div>
+            <h1>Gestión de Incidencias</h1>
+            <p class="page-subtitle">
+                Administra reportes de daños, mantenimiento correctivo y seguimiento de incidencias del edificio.
             </p>
+        </div>
+    </section>
 
-            <a href="../admin/dashboard.html" class="btn btn-blue">
-                Volver al Dashboard
-            </a>
+    <!-- RESUMEN -->
+    <section class="stats-grid">
+        <div class="card stat-card">
+            <span class="stat-kpi-icon">IN</span>
+            <span class="stat-number" id="totalIncidencias">0</span>
+            <label>Total incidencias</label>
+        </div>
+
+        <div class="card stat-card">
+            <span class="stat-kpi-icon warning">AB</span>
+            <span class="stat-number" id="incidenciasAbiertas">0</span>
+            <label>Abiertas</label>
+        </div>
+
+        <div class="card stat-card">
+            <span class="stat-kpi-icon">RV</span>
+            <span class="stat-number" id="incidenciasRevision">0</span>
+            <label>En revisión</label>
+        </div>
+
+        <div class="card stat-card">
+            <span class="stat-kpi-icon">PR</span>
+            <span class="stat-number" id="incidenciasProceso">0</span>
+            <label>En proceso</label>
+        </div>
+
+        <div class="card stat-card">
+            <span class="stat-kpi-icon success">RS</span>
+            <span class="stat-number" id="incidenciasResueltas">0</span>
+            <label>Resueltas</label>
+        </div>
+
+        <div class="card stat-card">
+            <span class="stat-kpi-icon danger">UR</span>
+            <span class="stat-number" id="incidenciasUrgentes">0</span>
+            <label>Urgentes</label>
+        </div>
+    </section>
+
+    <!-- FILTROS -->
+    <section class="card">
+        <div class="section-header">
+            <div>
+                <h2>Filtros</h2>
+                <p class="section-subtitle">
+                    Filtra incidencias por edificio, categoría, prioridad o estado.
+                </p>
+            </div>
+
+            <button type="button" class="btn btn-secondary" id="btnLimpiarFiltrosIncidencias">
+                Limpiar filtros
+            </button>
+        </div>
+
+        <div class="form-group-container">
+            <div class="group">
+                <label for="filtroEdificioIncidencia">Edificio</label>
+                <select id="filtroEdificioIncidencia">
+                    <option value="">Todos los edificios</option>
+                </select>
+            </div>
+
+            <div class="group">
+                <label for="filtroCategoriaIncidencia">Categoría</label>
+                <select id="filtroCategoriaIncidencia">
+                    <option value="">Todas</option>
+                    <option value="plomeria">Plomería</option>
+                    <option value="electrico">Eléctrico</option>
+                    <option value="estructural">Estructural</option>
+                    <option value="limpieza">Limpieza</option>
+                    <option value="seguridad">Seguridad</option>
+                    <option value="ascensores">Ascensores</option>
+                    <option value="areas_comunes">Áreas comunes</option>
+                    <option value="ruido_convivencia">Ruido / convivencia</option>
+                    <option value="otro">Otro</option>
+                </select>
+            </div>
+
+            <div class="group">
+                <label for="filtroPrioridadIncidencia">Prioridad</label>
+                <select id="filtroPrioridadIncidencia">
+                    <option value="">Todas</option>
+                    <option value="baja">Baja</option>
+                    <option value="media">Media</option>
+                    <option value="alta">Alta</option>
+                    <option value="urgente">Urgente</option>
+                </select>
+            </div>
+
+            <div class="group">
+                <label for="filtroEstadoIncidencia">Estado</label>
+                <select id="filtroEstadoIncidencia">
+                    <option value="">Todos</option>
+                    <option value="abierta">Abierta</option>
+                    <option value="en_revision">En revisión</option>
+                    <option value="en_proceso">En proceso</option>
+                    <option value="resuelta">Resuelta</option>
+                    <option value="rechazada">Rechazada</option>
+                    <option value="cancelada">Cancelada</option>
+                </select>
+            </div>
+
+            <div class="group">
+                <label for="busquedaIncidencia">Buscar</label>
+                <input 
+                    type="text" 
+                    id="busquedaIncidencia" 
+                    placeholder="Título, ubicación o residente"
+                >
+            </div>
+        </div>
+    </section>
+
+    <!-- LISTADO DE INCIDENCIAS -->
+    <section class="card">
+        <div class="section-header">
+            <div>
+                <h2>Incidencias registradas</h2>
+                <p class="section-subtitle">
+                    Revisa los reportes enviados por residentes y actualiza su seguimiento.
+                </p>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Incidencia</th>
+                        <th>Edificio</th>
+                        <th>Unidad</th>
+                        <th>Categoría</th>
+                        <th>Prioridad</th>
+                        <th>Estado</th>
+                        <th>Fecha</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+
+                <tbody id="tablaIncidenciasAdmin">
+                    <tr>
+                        <td colspan="8">Cargando incidencias...</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </section>
 </main>
 
+<!-- MODAL DETALLE -->
+<div id="modalDetalleIncidencia" class="modal">
+    <div class="modal-content modal-content-wide">
+        <span class="close-btn" id="cerrarModalDetalleIncidencia">&times;</span>
+
+        <h2>Detalle de incidencia</h2>
+
+        <div id="detalleIncidenciaAdmin">
+            <!-- Se llena con JS -->
+        </div>
+    </div>
+</div>
+
+<!-- MODAL CAMBIAR ESTADO -->
+<div id="modalEstadoIncidencia" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" id="cerrarModalEstadoIncidencia">&times;</span>
+
+        <h2>Actualizar estado</h2>
+
+        <input type="hidden" id="estadoIncidenciaId">
+
+        <div class="group">
+            <label for="nuevoEstadoIncidencia">Nuevo estado</label>
+            <select id="nuevoEstadoIncidencia" required>
+                <option value="">Seleccione estado...</option>
+                <option value="en_revision">En revisión</option>
+                <option value="en_proceso">En proceso</option>
+                <option value="resuelta">Resuelta</option>
+                <option value="rechazada">Rechazada</option>
+            </select>
+        </div>
+
+        <div class="group" style="margin-top: 12px;">
+            <label for="observacionEstadoIncidencia">Observación para el residente</label>
+            <textarea
+                id="observacionEstadoIncidencia"
+                placeholder="Ej: Se derivó la incidencia al proveedor de mantenimiento."
+                required
+            ></textarea>
+        </div>
+
+        <div class="form-actions" style="justify-content: flex-end;">
+            <button type="button" class="btn btn-secondary" id="btnCancelarEstadoIncidencia">
+                Cancelar
+            </button>
+
+            <button type="button" class="btn btn-blue" id="btnConfirmarEstadoIncidencia">
+                Guardar cambio
+            </button>
+        </div>
+    </div>
+</div>
+
 <script src="../../assets/js/core/data.js"></script>
+<script src="../../assets/js/services/anuncios.service.js"></script>
+<script src="../../assets/js/services/incidencias.service.js"></script>
 <script src="../../assets/js/components/sidebar.js"></script>
+<script src="../../assets/js/pages/incidencias.js"></script>
+
 </body>
 </html>

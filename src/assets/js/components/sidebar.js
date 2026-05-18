@@ -120,7 +120,7 @@ function obtenerMenuAdminSidebar() {
             paginas: ["config.html"]
         },
         {
-            texto: "Vista Usuario",
+            texto: "Vista Residente",
             icono: "🏠",
             href: "../residente/inicio.html",
             paginas: ["inicio.html"]
@@ -162,6 +162,12 @@ function obtenerMenuResidenteSidebar() {
             icono: "📅",
             href: "../residente/mis-reservas.html",
             paginas: ["mis-reservas.html"]
+        },
+        {
+            texto: "Mis Incidencias",
+            icono: "🛠️",
+            href: "../residente/mis-incidencias.html",
+            paginas: ["mis-incidencias.html"]
         },
         {
             texto: "Cerrar sesión",

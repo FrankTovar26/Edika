@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mis Incidencias - EDIFIKA</title>
+
+    <link rel="stylesheet" href="../../assets/css/style.css">
+</head>
+<body>
+
+<nav id="sidebar"></nav>
+
+<main>
+
+    <section class="page-header">
+        <div>
+            <h1>Mis Incidencias</h1>
+
+            <p class="page-subtitle">
+                Reporta daños, seguimiento de incidencias y consulta el estado de atención de tus solicitudes.
+            </p>
+        </div>
+    </section>
+
+    <!-- RESUMEN -->
+    <section class="stats-grid">
+
+        <div class="card stat-card">
+            <span class="stat-kpi-icon">IN</span>
+            <span class="stat-number" id="totalIncidenciasResidente">0</span>
+            <label>Total incidencias</label>
+        </div>
+
+        <div class="card stat-card">
+            <span class="stat-kpi-icon warning">AB</span>
+            <span class="stat-number" id="incidenciasAbiertasResidente">0</span>
+            <label>Abiertas</label>
+        </div>
+
+        <div class="card stat-card">
+            <span class="stat-kpi-icon">RV</span>
+            <span class="stat-number" id="incidenciasRevisionResidente">0</span>
+            <label>En revisión</label>
+        </div>
+
+        <div class="card stat-card">
+            <span class="stat-kpi-icon">PR</span>
+            <span class="stat-number" id="incidenciasProcesoResidente">0</span>
+            <label>En proceso</label>
+        </div>
+
+        <div class="card stat-card">
+            <span class="stat-kpi-icon success">RS</span>
+            <span class="stat-number" id="incidenciasResueltasResidente">0</span>
+            <label>Resueltas</label>
+        </div>
+
+        <div class="card stat-card">
+            <span class="stat-kpi-icon danger">UR</span>
+            <span class="stat-number" id="incidenciasUrgentesResidente">0</span>
+            <label>Urgentes</label>
+        </div>
+
+    </section>
+
+    <!-- REGISTRAR INCIDENCIA -->
+    <section class="card">
+
+        <div class="section-header">
+            <div>
+                <h2>Registrar incidencia</h2>
+
+                <p class="section-subtitle">
+                    Reporta problemas relacionados al edificio, áreas comunes o servicios.
+                </p>
+            </div>
+        </div>
+
+        <form id="formIncidenciaResidente">
+
+            <input type="hidden" id="incidenciaIdResidente">
+
+            <div class="form-group-container">
+
+                <div class="group">
+                    <label for="edificioIncidenciaResidente">Edificio</label>
+
+                    <select id="edificioIncidenciaResidente" required>
+                        <option value="">Seleccione edificio...</option>
+                    </select>
+                </div>
+
+                <div class="group">
+                    <label for="unidadIncidenciaResidente">Unidad vinculada</label>
+
+                    <select id="unidadIncidenciaResidente" required>
+                        <option value="">Seleccione unidad...</option>
+                    </select>
+                </div>
+
+                <div class="group">
+                    <label for="categoriaIncidenciaResidente">Categoría</label>
+
+                    <select id="categoriaIncidenciaResidente" required>
+                        <option value="">Seleccione categoría...</option>
+
+                        <option value="plomeria">Plomería</option>
+                        <option value="electrico">Eléctrico</option>
+                        <option value="estructural">Estructural</option>
+                        <option value="limpieza">Limpieza</option>
+                        <option value="seguridad">Seguridad</option>
+                        <option value="ascensores">Ascensores</option>
+                        <option value="areas_comunes">Áreas comunes</option>
+                        <option value="ruido_convivencia">Ruido / convivencia</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                </div>
+
+                <div class="group">
+                    <label for="prioridadIncidenciaResidente">Prioridad</label>
+
+                    <select id="prioridadIncidenciaResidente" required>
+                        <option value="media">Media</option>
+                        <option value="baja">Baja</option>
+                        <option value="alta">Alta</option>
+                        <option value="urgente">Urgente</option>
+                    </select>
+                </div>
+
+            </div>
+
+            <div class="form-group-container">
+
+                <div class="group">
+                    <label for="tituloIncidenciaResidente">Título</label>
+
+                    <input
+                        type="text"
+                        id="tituloIncidenciaResidente"
+                        placeholder="Ej: Fuga de agua en pasillo"
+                        maxlength="120"
+                        required
+                    >
+                </div>
+
+                <div class="group">
+                    <label for="ubicacionIncidenciaResidente">Ubicación</label>
+
+                    <input
+                        type="text"
+                        id="ubicacionIncidenciaResidente"
+                        placeholder="Ej: Piso 5 - Pasillo principal"
+                        maxlength="120"
+                        required
+                    >
+                </div>
+
+            </div>
+
+            <div class="form-group-container">
+
+                <div class="group">
+                    <label for="descripcionIncidenciaResidente">Descripción</label>
+
+                    <textarea
+                        id="descripcionIncidenciaResidente"
+                        placeholder="Describe el problema detalladamente..."
+                        maxlength="1000"
+                        required
+                    ></textarea>
+                </div>
+
+            </div>
+
+            <div class="form-group-container">
+
+                <div class="group">
+                    <label for="fotoIncidenciaResidente">Foto / evidencia</label>
+
+                    <input
+                        type="file"
+                        id="fotoIncidenciaResidente"
+                        accept="image/*"
+                    >
+
+                    <small class="form-help">
+                        Puedes adjuntar una imagen opcional del problema.
+                    </small>
+                </div>
+
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-blue">
+                    Registrar incidencia
+                </button>
+            </div>
+
+        </form>
+
+    </section>
+
+    <!-- FILTROS -->
+    <section class="card">
+
+        <div class="section-header">
+            <div>
+                <h2>Filtros</h2>
+
+                <p class="section-subtitle">
+                    Filtra tus incidencias por estado, prioridad o categoría.
+                </p>
+            </div>
+
+            <button
+                type="button"
+                class="btn btn-secondary"
+                id="btnLimpiarFiltrosMisIncidencias"
+            >
+                Limpiar filtros
+            </button>
+        </div>
+
+        <div class="form-group-container">
+
+            <div class="group">
+                <label for="filtroEstadoMisIncidencias">Estado</label>
+
+                <select id="filtroEstadoMisIncidencias">
+                    <option value="">Todos</option>
+
+                    <option value="abierta">Abierta</option>
+                    <option value="en_revision">En revisión</option>
+                    <option value="en_proceso">En proceso</option>
+                    <option value="resuelta">Resuelta</option>
+                    <option value="rechazada">Rechazada</option>
+                    <option value="cancelada">Cancelada</option>
+                </select>
+            </div>
+
+            <div class="group">
+                <label for="filtroCategoriaMisIncidencias">Categoría</label>
+
+                <select id="filtroCategoriaMisIncidencias">
+                    <option value="">Todas</option>
+
+                    <option value="plomeria">Plomería</option>
+                    <option value="electrico">Eléctrico</option>
+                    <option value="estructural">Estructural</option>
+                    <option value="limpieza">Limpieza</option>
+                    <option value="seguridad">Seguridad</option>
+                    <option value="ascensores">Ascensores</option>
+                    <option value="areas_comunes">Áreas comunes</option>
+                    <option value="ruido_convivencia">Ruido / convivencia</option>
+                    <option value="otro">Otro</option>
+                </select>
+            </div>
+
+            <div class="group">
+                <label for="filtroPrioridadMisIncidencias">Prioridad</label>
+
+                <select id="filtroPrioridadMisIncidencias">
+                    <option value="">Todas</option>
+
+                    <option value="baja">Baja</option>
+                    <option value="media">Media</option>
+                    <option value="alta">Alta</option>
+                    <option value="urgente">Urgente</option>
+                </select>
+            </div>
+
+            <div class="group">
+                <label for="buscarMisIncidencias">Buscar</label>
+
+                <input
+                    type="text"
+                    id="buscarMisIncidencias"
+                    placeholder="Título, ubicación..."
+                >
+            </div>
+
+        </div>
+
+    </section>
+
+    <!-- LISTADO -->
+    <section class="card">
+
+        <div class="section-header">
+            <div>
+                <h2>Mis incidencias registradas</h2>
+
+                <p class="section-subtitle">
+                    Consulta el seguimiento y estado de atención de tus reportes.
+                </p>
+            </div>
+        </div>
+
+        <div class="table-container">
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>Incidencia</th>
+                        <th>Categoría</th>
+                        <th>Prioridad</th>
+                        <th>Estado</th>
+                        <th>Fecha</th>
+                        <th>Última actualización</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+
+                <tbody id="tablaMisIncidencias">
+
+                    <tr>
+                        <td colspan="7">
+                            Cargando incidencias...
+                        </td>
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </section>
+
+</main>
+
+<!-- MODAL DETALLE -->
+<div id="modalDetalleMisIncidencias" class="modal">
+
+    <div class="modal-content modal-content-wide">
+
+        <span class="close-btn" id="cerrarModalDetalleMisIncidencias">
+            &times;
+        </span>
+
+        <h2>Detalle de incidencia</h2>
+
+        <div id="detalleMisIncidencias">
+            <!-- Se llena con JS -->
+        </div>
+
+    </div>
+
+</div>
+
+<script src="../../assets/js/core/data.js"></script>
+<script src="../../assets/js/services/anuncios.service.js"></script>
+<script src="../../assets/js/services/incidencias.service.js"></script>
+<script src="../../assets/js/components/sidebar.js"></script>
+<script src="../../assets/js/pages/mis-incidencias.js"></script>
+
+</body>
+</html>
