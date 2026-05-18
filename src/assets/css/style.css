@@ -1092,3 +1092,62 @@ th {
         flex-direction: column;
     }
 }
+
+.stat-card {
+    min-height: 120px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #edf0f3;
+}
+
+.stat-kpi-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: #eef6fc;
+    color: var(--accent);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    margin-bottom: 6px;
+}
+
+.stat-kpi-icon.success {
+    background: #e8f8ef;
+    color: var(--success);
+}
+
+.stat-kpi-icon.danger {
+    background: #fdecea;
+    color: var(--danger);
+}
+
+.stat-kpi-icon.warning {
+    background: #fff4df;
+    color: var(--warning);
+}
+
+.calendar-day-reservada {
+    background: #e5e7eb !important;
+    color: #6b7280 !important;
+    border-color: #d1d5db !important;
+}
+
+.calendar-day-mantenimiento {
+    background: #fff4df !important;
+    color: #b7791f !important;
+    border-color: #f6c66a !important;
+}
+
+.badge-blue {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.badge-purple {
+    background: #ede9fe;
+    color: #6d28d9;
+}

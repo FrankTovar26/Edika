@@ -6,84 +6,177 @@
     <title>Mis Reservas - EDIFIKA</title>
 
     <link rel="stylesheet" href="../../assets/css/style.css">
+
+    <!-- Flatpickr -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 </head>
 <body>
 
-    <nav id="sidebar"></nav>
+<nav id="sidebar"></nav>
 
-    <main>
-        <h1>Mis Reservas</h1>
+<main>
+    <section class="page-header">
+        <div>
+            <h1>Mis Reservas</h1>
+            <p class="page-subtitle">
+                Consulta la disponibilidad de áreas comunes y administra tus reservas.
+            </p>
+        </div>
+    </section>
 
-        <section class="card">
-            <h2>Registrar / Editar reserva</h2>
+    <!-- RESUMEN -->
+    <section class="stats-grid">
+        <div class="card stat-card">
+            <span class="stat-kpi-icon">AR</span>
+            <span class="stat-number" id="totalAreasDisponiblesResidente">0</span>
+            <label>Áreas disponibles</label>
+        </div>
 
-            <form id="formReservaResidente">
-                <input type="hidden" id="reservaId">
+        <div class="card stat-card">
+            <span class="stat-kpi-icon success">AP</span>
+            <span class="stat-number" id="totalReservasAprobadasResidente">0</span>
+            <label>Aprobadas</label>
+        </div>
 
-                <div class="form-group-container">
-                    <div class="group">
-                        <label for="areaReservaResidente">Área común</label>
-                        <select id="areaReservaResidente" required>
-                            <option value="">Seleccione un área</option>
-                        </select>
-                    </div>
+        <div class="card stat-card">
+            <span class="stat-kpi-icon danger">RE</span>
+            <span class="stat-number" id="totalReservasRechazadasResidente">0</span>
+            <label>Rechazadas</label>
+        </div>
 
-                    <div class="group">
-                        <label for="fechaReservaResidente">Fecha</label>
-                        <input type="date" id="fechaReservaResidente" required>
-                    </div>
+        <div class="card stat-card">
+            <span class="stat-kpi-icon">FI</span>
+            <span class="stat-number" id="totalReservasFinalizadasResidente">0</span>
+            <label>Finalizadas</label>
+        </div>
+    </section>
 
-                    <div class="group" style="justify-content: flex-end;">
-                        <button type="submit" class="btn btn-blue">
-                            Guardar reserva
-                        </button>
-                    </div>
+    <!-- REGISTRAR / EDITAR RESERVA -->
+    <section class="card">
+        <div class="section-header">
+            <div>
+                <h2>Registrar / Reprogramar reserva</h2>
+                <p class="section-subtitle">
+                    Selecciona un área común y una fecha disponible. Las fechas reservadas o en mantenimiento estarán bloqueadas.
+                </p>
+            </div>
+        </div>
+
+        <form id="formReservaResidente">
+            <input type="hidden" id="reservaId">
+
+            <div class="form-group-container">
+                <div class="group">
+                    <label for="areaReservaResidente">Área común</label>
+                    <select id="areaReservaResidente" required>
+                        <option value="">Seleccione un área</option>
+                    </select>
                 </div>
-            </form>
-        </section>
 
-        <section class="card">
-            <h2>Reservas existentes</h2>
+                <div class="group">
+                    <label for="unidadReservaResidente">Unidad vinculada</label>
+                    <select id="unidadReservaResidente" required>
+                        <option value="">Seleccione una unidad</option>
+                    </select>
+                </div>
 
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Área</th>
-                            <th>Fecha</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tablaReservasExistentes">
-                        <!-- Se llena con JS -->
-                    </tbody>
-                </table>
+                <div class="group">
+                    <label for="fechaReservaResidente">Fecha</label>
+                    <input 
+                        type="text" 
+                        id="fechaReservaResidente" 
+                        placeholder="Seleccione una fecha"
+                        required
+                    >
+                    <small class="form-help">
+                        Gris: reservado. Naranja: mantenimiento.
+                    </small>
+                </div>
+
+                <div class="group" style="justify-content: flex-end;">
+                    <button type="submit" class="btn btn-blue" id="btnGuardarReservaResidente">
+                        Guardar reserva
+                    </button>
+                </div>
             </div>
-        </section>
+        </form>
+    </section>
 
-        <section class="card">
-            <h2>Reservas registradas</h2>
-
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Área</th>
-                            <th>Unidad</th>
-                            <th>Fecha</th>
-                            <th>Estado</th>
-                            <th>Acción</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tablaMisReservas">
-                        <!-- Se llena con JS -->
-                    </tbody>
-                </table>
+    <!-- DISPONIBILIDAD -->
+    <section class="card">
+        <div class="section-header">
+            <div>
+                <h2>Disponibilidad de áreas</h2>
+                <p class="section-subtitle">
+                    Revisa el estado actual de las áreas comunes de tus edificios vinculados.
+                </p>
             </div>
-        </section>
-    </main>
+        </div>
 
-    <script src="../../assets/js/components/sidebar.js"></script>
-    <script src="../../assets/js/core/data.js"></script>
-    <script src="../../assets/js/pages/reservas.js"></script>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Área</th>
+                        <th>Edificio</th>
+                        <th>Aforo</th>
+                        <th>Estado actual</th>
+                        <th>Detalle</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaReservasExistentes">
+                    <tr>
+                        <td colspan="5">Cargando disponibilidad...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- MIS RESERVAS -->
+    <section class="card">
+        <div class="section-header">
+            <div>
+                <h2>Mis reservas registradas</h2>
+                <p class="section-subtitle">
+                    Consulta tus reservas aprobadas, rechazadas, canceladas o finalizadas.
+                </p>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Área</th>
+                        <th>Edificio</th>
+                        <th>Unidad</th>
+                        <th>Fecha</th>
+                        <th>Estado</th>
+                        <th>Observación</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaMisReservas">
+                    <tr>
+                        <td colspan="7">Cargando tus reservas...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+</main>
+
+<!-- Flatpickr -->
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
+
+<!-- Scripts del sistema -->
+<script src="../../assets/js/core/data.js"></script>
+<script src="../../assets/js/services/anuncios.service.js"></script>
+<script src="../../assets/js/services/areas.service.js"></script>
+<script src="../../assets/js/components/sidebar.js"></script>
+<script src="../../assets/js/pages/reservas.js"></script>
+
 </body>
 </html>

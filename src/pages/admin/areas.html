@@ -6,143 +6,363 @@
     <title>Áreas Comunes - EDIFIKA</title>
 
     <link rel="stylesheet" href="../../assets/css/style.css">
+
+    <!-- Flatpickr -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 </head>
 <body>
 
-    <nav id="sidebar"></nav>
+<nav id="sidebar"></nav>
 
-    <main>
-        <h1>Gestión de Áreas Comunes</h1>
+<main>
+    <section class="page-header">
+        <div>
+            <h1>Gestión de Áreas Comunes</h1>
+            <p class="page-subtitle">
+                Administra áreas comunes, reservas y mantenimientos programados por edificio.
+            </p>
+        </div>
+    </section>
 
-        <section class="card">
-            <h2>Registrar Nueva Área</h2>
+    <!-- REGISTRAR ÁREA -->
+    <section class="card">
+        <div class="section-header">
+            <div>
+                <h2>Registrar Nueva Área</h2>
+                <p class="section-subtitle">
+                    Crea espacios como piscina, SUM, parrilla, gimnasio o terraza.
+                </p>
+            </div>
+        </div>
 
-            <form id="formArea">
-                <div class="form-group-container">
-                    <div class="group">
-                        <label for="nombreArea">Nombre del Área</label>
-                        <input 
-                            type="text" 
-                            id="nombreArea" 
-                            placeholder="Ej: Piscina, SUM, Parrilla" 
-                            required
-                        >
-                    </div>
-
-                    <div class="group">
-                        <label for="aforoArea">Aforo Máximo</label>
-                        <input 
-                            type="number" 
-                            id="aforoArea" 
-                            placeholder="Ej: 20" 
-                            min="1" 
-                            required
-                        >
-                    </div>
-
-                    <div class="group">
-                        <label for="descripcionArea">Descripción</label>
-                        <input 
-                            type="text" 
-                            id="descripcionArea" 
-                            placeholder="Breve descripción del espacio"
-                        >
-                    </div>
-
-                    <div class="group">
-                        <label for="estadoArea">Estado</label>
-                        <select id="estadoArea" required>
-                            <option value="disponible">Disponible</option>
-                            <option value="no_disponible">No disponible</option>
-                        </select>
-                    </div>
+        <form id="formArea">
+            <div class="form-group-container">
+                <div class="group">
+                    <label for="edificioArea">Edificio</label>
+                    <select id="edificioArea" required>
+                        <option value="">Seleccione edificio...</option>
+                    </select>
                 </div>
 
-                <button type="submit" class="btn btn-green" style="margin-top: 15px;">
+                <div class="group">
+                    <label for="nombreArea">Nombre del Área</label>
+                    <input 
+                        type="text" 
+                        id="nombreArea" 
+                        placeholder="Ej: Piscina, SUM, Parrilla" 
+                        required
+                    >
+                </div>
+
+                <div class="group">
+                    <label for="aforoArea">Aforo Máximo</label>
+                    <input 
+                        type="number" 
+                        id="aforoArea" 
+                        placeholder="Ej: 20" 
+                        min="1" 
+                        required
+                    >
+                </div>
+
+                <div class="group">
+                    <label for="descripcionArea">Descripción</label>
+                    <input 
+                        type="text" 
+                        id="descripcionArea" 
+                        placeholder="Breve descripción del espacio"
+                    >
+                </div>
+
+                <div class="group">
+                    <label for="estadoArea">Estado general</label>
+                    <select id="estadoArea" required>
+                        <option value="disponible">Disponible</option>
+                        <option value="bloqueada">Bloqueada</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-green">
                     Registrar Área
                 </button>
-            </form>
-        </section>
-
-        <section class="card">
-            <h2>Áreas Registradas</h2>
-
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Nombre</th>
-                            <th>Aforo</th>
-                            <th>Descripción</th>
-                            <th>Estado</th>
-                            <th>Acción</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tablaAreas">
-                        <!-- Se llena con JS -->
-                    </tbody>
-                </table>
             </div>
-        </section>
+        </form>
+    </section>
 
-        <section class="card">
-            <h2>Registrar / Editar Reserva</h2>
+    <!-- ÁREAS REGISTRADAS -->
+    <section class="card">
+        <div class="section-header">
+            <div>
+                <h2>Áreas Registradas</h2>
+                <p class="section-subtitle">
+                    Revisa el estado general de cada área común.
+                </p>
+            </div>
+        </div>
 
-            <form id="formReserva">
-                <input type="hidden" id="reservaAdminId">
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Área</th>
+                        <th>Edificio</th>
+                        <th>Aforo</th>
+                        <th>Descripción</th>
+                        <th>Estado general</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaAreas">
+                    <tr>
+                        <td colspan="6">Cargando áreas...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
 
-                <div class="form-group-container">
-                    <div class="group">
-                        <label for="areaReserva">Seleccionar Área</label>
-                        <select id="areaReserva" required>
-                            <option value="">Seleccione un área</option>
-                        </select>
-                    </div>
+    <!-- PROGRAMAR MANTENIMIENTO -->
+    <section class="card">
+        <div class="section-header">
+            <div>
+                <h2>Programar Mantenimiento</h2>
+                <p class="section-subtitle">
+                    Bloquea un área por mantenimiento y notifica a los residentes del edificio.
+                </p>
+            </div>
+        </div>
 
-                    <div class="group">
-                        <label for="departamentoReserva">Departamento que solicita</label>
-                        <select id="departamentoReserva" required>
-                            <option value="">Seleccione unidad</option>
-                        </select>
-                    </div>
+        <form id="formMantenimientoArea">
+            <input type="hidden" id="mantenimientoAreaId">
 
-                    <div class="group">
-                        <label for="fechaReserva">Fecha</label>
-                        <input type="date" id="fechaReserva" required>
-                    </div>
-
-                    <div class="group" style="justify-content: flex-end;">
-                        <button type="submit" class="btn btn-blue">
-                            Guardar Reserva
-                        </button>
-                    </div>
+            <div class="form-group-container">
+                <div class="group">
+                    <label for="areaMantenimiento">Área</label>
+                    <select id="areaMantenimiento" required>
+                        <option value="">Seleccione un área</option>
+                    </select>
                 </div>
-            </form>
-        </section>
 
-        <section class="card">
-            <h2>Reservas Registradas</h2>
+                <div class="group">
+                    <label for="fechaInicioMantenimiento">Fecha inicio</label>
+                    <input type="date" id="fechaInicioMantenimiento" required>
+                </div>
 
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Área</th>
-                            <th>Unidad</th>
-                            <th>Fecha</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tablaReservas">
-                        <!-- Se llena con JS -->
-                    </tbody>
-                </table>
+                <div class="group">
+                    <label for="fechaFinMantenimiento">Fecha fin</label>
+                    <input type="date" id="fechaFinMantenimiento" required>
+                </div>
+
+                <div class="group">
+                    <label for="motivoMantenimiento">Motivo</label>
+                    <select id="motivoMantenimiento" required>
+                        <option value="">Seleccione motivo...</option>
+                        <option value="limpieza_profunda">Limpieza profunda</option>
+                        <option value="reparacion">Reparación</option>
+                        <option value="fumigacion">Fumigación</option>
+                        <option value="inspeccion">Inspección técnica</option>
+                        <option value="mejora">Mejora del ambiente</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                </div>
             </div>
-        </section>
-    </main>
 
-    <script src="../../assets/js/components/sidebar.js"></script>
-    <script src="../../assets/js/core/data.js"></script>
-    <script src="../../assets/js/pages/areas.js"></script>
+            <div class="form-group-container">
+                <div class="group">
+                    <label for="descripcionMantenimiento">Descripción / Observación</label>
+                    <textarea 
+                        id="descripcionMantenimiento" 
+                        placeholder="Ej: Se realizará limpieza profunda y revisión del mobiliario."
+                        required
+                    ></textarea>
+                </div>
+
+                <div class="group">
+                    <label for="notificarMantenimiento">Notificación</label>
+                    <select id="notificarMantenimiento">
+                        <option value="si">Enviar anuncio a residentes</option>
+                        <option value="no">No enviar anuncio</option>
+                    </select>
+                </div>
+
+                <div class="group" style="justify-content: flex-end;">
+                    <button type="submit" class="btn btn-blue">
+                        Programar mantenimiento
+                    </button>
+                </div>
+            </div>
+        </form>
+    </section>
+
+    <!-- MANTENIMIENTOS PROGRAMADOS -->
+    <section class="card">
+        <div class="section-header">
+            <div>
+                <h2>Mantenimientos Programados</h2>
+                <p class="section-subtitle">
+                    Control de mantenimientos vigentes, finalizados o cancelados.
+                </p>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Área</th>
+                        <th>Edificio</th>
+                        <th>Periodo</th>
+                        <th>Motivo</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaMantenimientosAreas">
+                    <tr>
+                        <td colspan="6">No hay mantenimientos registrados.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- REGISTRAR / EDITAR RESERVA -->
+    <section class="card">
+        <div class="section-header">
+            <div>
+                <h2>Registrar / Editar Reserva</h2>
+                <p class="section-subtitle">
+                    Las reservas se aprueban automáticamente si no existe cruce con otra reserva o mantenimiento.
+                </p>
+            </div>
+        </div>
+
+        <form id="formReserva">
+            <input type="hidden" id="reservaAdminId">
+
+            <div class="form-group-container">
+                <div class="group">
+                    <label for="areaReserva">Seleccionar Área</label>
+                    <select id="areaReserva" required>
+                        <option value="">Seleccione un área</option>
+                    </select>
+                </div>
+
+                <div class="group">
+                    <label for="departamentoReserva">Unidad que solicita</label>
+                    <select id="departamentoReserva" required>
+                        <option value="">Seleccione departamento u oficina</option>
+                    </select>
+                </div>
+
+                <div class="group">
+                    <label for="fechaReserva">Fecha</label>
+                    <input type="text" id="fechaReserva" placeholder="Seleccione una fecha" required>
+                    <small class="form-help">
+                        Las fechas reservadas o en mantenimiento aparecerán bloqueadas.
+                    </small>
+                </div>
+
+                <div class="group" style="justify-content: flex-end;">
+                    <button type="submit" class="btn btn-blue">
+                        Guardar reserva aprobada
+                    </button>
+                </div>
+            </div>
+        </form>
+    </section>
+
+    <!-- RESERVAS REGISTRADAS -->
+    <section class="card">
+        <div class="section-header">
+            <div>
+                <h2>Reservas Registradas</h2>
+                <p class="section-subtitle">
+                    Gestiona reservas aprobadas, rechazadas, canceladas o finalizadas.
+                </p>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Área</th>
+                        <th>Edificio</th>
+                        <th>Unidad</th>
+                        <th>Fecha</th>
+                        <th>Estado</th>
+                        <th>Observación</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaReservas">
+                    <tr>
+                        <td colspan="7">Cargando reservas...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+</main>
+
+<!-- MODAL RECHAZAR RESERVA -->
+<div id="modalRechazarReserva" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" id="cerrarModalRechazo">&times;</span>
+
+        <h2>Rechazar reserva</h2>
+
+        <input type="hidden" id="reservaRechazoId">
+
+        <div class="group">
+            <label for="motivoRechazoReserva">Motivo</label>
+            <select id="motivoRechazoReserva" required>
+                <option value="">Seleccione motivo...</option>
+                <option value="area_mantenimiento">Área en mantenimiento</option>
+                <option value="cruce_reserva">Cruce con otra reserva aprobada</option>
+                <option value="fecha_no_disponible">Fecha no disponible</option>
+                <option value="uso_no_autorizado">Uso no autorizado</option>
+                <option value="incumplimiento_normas">Incumplimiento de normas</option>
+                <option value="solicitud_duplicada">Solicitud duplicada</option>
+                <option value="otro">Otro</option>
+            </select>
+        </div>
+
+        <div class="group" style="margin-top: 12px;">
+            <label for="observacionRechazoReserva">Observación para el residente</label>
+            <textarea 
+                id="observacionRechazoReserva"
+                placeholder="Ej: El área estará en mantenimiento durante la fecha solicitada. Por favor seleccione otra fecha."
+                required
+            ></textarea>
+        </div>
+
+        <div class="form-actions" style="justify-content: flex-end;">
+            <button type="button" class="btn btn-secondary" id="btnCancelarRechazoReserva">
+                Cancelar
+            </button>
+
+            <button type="button" class="btn btn-red" id="btnConfirmarRechazoReserva">
+                Rechazar reserva
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Flatpickr -->
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
+
+<!-- Scripts del sistema -->
+<script src="../../assets/js/core/data.js"></script>
+<script src="../../assets/js/services/anuncios.service.js"></script>
+<script src="../../assets/js/services/areas.service.js"></script>
+<script src="../../assets/js/components/sidebar.js"></script>
+<script src="../../assets/js/components/calendario-reservas.js"></script>
+<script src="../../assets/js/pages/areas.js"></script>
+
 </body>
 </html>
