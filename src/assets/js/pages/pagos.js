@@ -3,6 +3,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
     inicializarPagosService();
 
+    if (typeof inicializarRecordatoriosService === "function") {
+        inicializarRecordatoriosService();
+    }
+
+    if (typeof inicializarMorosidadService === "function") {
+        inicializarMorosidadService();
+    }
+
+    if (typeof inicializarDashboardFinancieroService === "function") {
+        inicializarDashboardFinancieroService();
+    }
+
     cargarPaginaPagos();
 
     configurarFormularioCuotas();
@@ -13,6 +25,7 @@ document.addEventListener("DOMContentLoaded", () => {
     configurarModalComprobantePago();
 
     configurarEventosCuotas();
+    configurarEventosFase2Pagos();
 });
 
 /* =========================================================
@@ -48,6 +61,10 @@ function cargarPaginaPagos() {
 
     renderizarTablaCuotas(cuotas);
     renderizarTablaComprobantes(pagos);
+
+    renderizarAlertasFinancieras();
+    renderizarTablaMorosidad();
+    renderizarResumenFinancieroEdificios();
 }
 
 /* =========================================================
@@ -55,29 +72,56 @@ function cargarPaginaPagos() {
 ========================================================= */
 
 function cargarMetricasPagos(cuotas) {
-    const metricas = calcularMetricasCuotas(cuotas);
+    let metricas;
+
+    if (typeof obtenerResumenDashboardFinanciero === "function") {
+        const resumen = obtenerResumenDashboardFinanciero(
+            obtenerFiltrosDashboardFinancieroActuales()
+        );
+
+        metricas = resumen.metricas;
+    } else {
+        metricas = calcularMetricasCuotas(cuotas);
+    }
 
     setTextPago(
         "totalFacturado",
-        `S/ ${formatearMontoPago(metricas.totalFacturado)}`
+        `S/ ${formatearMontoPagoSeguro(metricas.totalFacturado)}`
     );
 
     setTextPago(
         "totalCobrado",
-        `S/ ${formatearMontoPago(metricas.totalCobrado)}`
+        `S/ ${formatearMontoPagoSeguro(metricas.totalCobrado)}`
     );
 
     setTextPago(
         "totalPendiente",
-        `S/ ${formatearMontoPago(metricas.totalPendiente)}`
+        `S/ ${formatearMontoPagoSeguro(metricas.totalPendiente)}`
     );
 
-    setTextPago("cuotasPendientes", metricas.pendientes);
-    setTextPago("cuotasVencidas", metricas.vencidas);
+    setTextPago(
+        "totalVencido",
+        `S/ ${formatearMontoPagoSeguro(metricas.totalVencido || 0)}`
+    );
+
+    setTextPago(
+        "cuotasPendientes",
+        metricas.cuotasPendientes ?? metricas.pendientes ?? 0
+    );
+
+    setTextPago(
+        "cuotasVencidas",
+        metricas.cuotasVencidas ?? metricas.vencidas ?? 0
+    );
+
+    setTextPago(
+        "unidadesMorosas",
+        metricas.unidadesMorosas || 0
+    );
 
     setTextPago(
         "porcentajeCobranza",
-        `${metricas.porcentajeCobranza}%`
+        `${metricas.porcentajeCobranza || 0}%`
     );
 }
 
@@ -153,7 +197,6 @@ function configurarFormularioCuotas() {
 }
 
 function procesarResultadoGeneracion(resultado) {
-
     if (!resultado.ok) {
         alert(resultado.error);
         return;
@@ -162,6 +205,10 @@ function procesarResultadoGeneracion(resultado) {
     ocultarAlertaDuplicados();
 
     limpiarFormularioCuotas();
+
+    if (typeof ejecutarRecordatoriosAutomaticos === "function") {
+        ejecutarRecordatoriosAutomaticos();
+    }
 
     cargarPaginaPagos();
 
@@ -200,6 +247,28 @@ function configurarEventosCuotas() {
     });
 
     actualizarVisibilidadUnidad();
+}
+
+function configurarEventosFase2Pagos() {
+    const btnRecordatorios = document.getElementById("btnEjecutarRecordatorios");
+
+    btnRecordatorios?.addEventListener("click", () => {
+        if (typeof ejecutarRecordatoriosAutomaticos !== "function") {
+            alert("El servicio de recordatorios no está disponible.");
+            return;
+        }
+
+        const resultado = ejecutarRecordatoriosAutomaticos();
+
+        if (!resultado.ok) {
+            alert("No se pudieron ejecutar los recordatorios.");
+            return;
+        }
+
+        cargarPaginaPagos();
+
+        alert("Recordatorios ejecutados correctamente.");
+    });
 }
 
 function actualizarVisibilidadUnidad() {
@@ -300,11 +369,15 @@ function obtenerCuotasFiltradasAdmin() {
     }
 
     if (busqueda) {
+        const db = obtenerTodo();
+
         cuotas = cuotas.filter(item => {
+            const unidad = obtenerNombreUnidadPago(db, item.unidadId);
 
             const texto = `
                 ${item.concepto || ""}
                 ${item.periodo || ""}
+                ${unidad || ""}
             `.toLowerCase();
 
             return texto.includes(busqueda);
@@ -319,12 +392,30 @@ function obtenerCuotasFiltradasAdmin() {
 }
 
 function obtenerPagosFiltradosAdmin() {
-    return obtenerPagosVisiblesAdmin()
-        .sort((a, b) =>
-            String(b.fechaRegistro || "").localeCompare(
-                String(a.fechaRegistro || "")
-            )
+    let pagos = obtenerPagosVisiblesAdmin();
+
+    const edificio = document.getElementById("filtroEdificioCuota")?.value || "";
+
+    if (edificio) {
+        pagos = pagos.filter(pago =>
+            String(pago.edificioId || "") === String(edificio)
         );
+    }
+
+    return pagos.sort((a, b) =>
+        String(b.fechaRegistro || "").localeCompare(
+            String(a.fechaRegistro || "")
+        )
+    );
+}
+
+function obtenerFiltrosDashboardFinancieroActuales() {
+    return {
+        edificioId: document.getElementById("filtroEdificioCuota")?.value || "",
+        periodo: document.getElementById("filtroPeriodoCuota")?.value || "",
+        tipo: document.getElementById("filtroTipoCuota")?.value || "",
+        estado: document.getElementById("filtroEstadoCuota")?.value || ""
+    };
 }
 
 /* =========================================================
@@ -530,6 +621,117 @@ function renderizarBotonValidacionPago(pago) {
             Validar
         </button>
     `;
+}
+
+/* =========================================================
+   FASE 2 - ALERTAS FINANCIERAS
+========================================================= */
+
+function renderizarAlertasFinancieras() {
+    const contenedor = document.getElementById("alertasFinancieras");
+
+    if (!contenedor) return;
+
+    const alertas = typeof obtenerAlertasFinancierasDashboard === "function"
+        ? obtenerAlertasFinancierasDashboard(obtenerFiltrosDashboardFinancieroActuales())
+        : [];
+
+    if (alertas.length === 0) {
+        contenedor.innerHTML = `
+            <p class="empty-text">
+                No hay alertas financieras por el momento.
+            </p>
+        `;
+        return;
+    }
+
+    contenedor.innerHTML = alertas.map(alerta => `
+        <div class="alert-card ${claseAlertaFinanciera(alerta.prioridad)}">
+            <strong>${escapeHTMLPago(alerta.titulo)}</strong>
+            <p>${escapeHTMLPago(alerta.mensaje)}</p>
+        </div>
+    `).join("");
+}
+
+function claseAlertaFinanciera(prioridad) {
+    if (prioridad === "alta") return "alert-danger";
+    if (prioridad === "media") return "alert-warning";
+
+    return "alert-info";
+}
+
+/* =========================================================
+   FASE 2 - MOROSIDAD
+========================================================= */
+
+function renderizarTablaMorosidad() {
+    const tabla = document.getElementById("tablaMorosidadAdmin");
+
+    if (!tabla) return;
+
+    const ranking = typeof obtenerRankingMorosidadDashboard === "function"
+        ? obtenerRankingMorosidadDashboard(obtenerFiltrosDashboardFinancieroActuales(), 10)
+        : [];
+
+    if (ranking.length === 0) {
+        tabla.innerHTML = `
+            <tr>
+                <td colspan="7">
+                    No hay unidades morosas.
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tabla.innerHTML = ranking.map(item => `
+        <tr>
+            <td>${escapeHTMLPago(item.unidadNumero || item.unidadId || "-")}</td>
+            <td>${escapeHTMLPago(item.edificioNombre || "-")}</td>
+            <td>${escapeHTMLPago(item.residenteNombre || "-")}</td>
+            <td>${item.cantidadCuotas || 0}</td>
+            <td>S/ ${formatearMontoPagoSeguro(item.totalVencido)}</td>
+            <td>${item.diasMaximoVencido || 0}</td>
+            <td>
+                <span class="badge ${claseNivelMorosidadSeguro(item.nivelMorosidad)}">
+                    ${formatearNivelMorosidadSeguro(item.nivelMorosidad)}
+                </span>
+            </td>
+        </tr>
+    `).join("");
+}
+
+/* =========================================================
+   FASE 2 - RESUMEN POR EDIFICIO
+========================================================= */
+
+function renderizarResumenFinancieroEdificios() {
+    const contenedor = document.getElementById("resumenFinancieroEdificios");
+
+    if (!contenedor) return;
+
+    const resumen = typeof obtenerResumenFinancieroPorEdificio === "function"
+        ? obtenerResumenFinancieroPorEdificio(obtenerFiltrosDashboardFinancieroActuales())
+        : [];
+
+    if (resumen.length === 0) {
+        contenedor.innerHTML = `
+            <p class="empty-text">
+                No hay información financiera por edificio.
+            </p>
+        `;
+        return;
+    }
+
+    contenedor.innerHTML = resumen.map(item => `
+        <div class="mini-card">
+            <strong>${escapeHTMLPago(item.edificioNombre || "-")}</strong>
+            <p>Facturado: S/ ${formatearMontoPagoSeguro(item.totalFacturado)}</p>
+            <p>Cobrado: S/ ${formatearMontoPagoSeguro(item.totalCobrado)}</p>
+            <p>Vencido: S/ ${formatearMontoPagoSeguro(item.totalVencido)}</p>
+            <p>Cobranza: ${item.porcentajeCobranza || 0}%</p>
+        </div>
+    `).join("");
 }
 
 /* =========================================================
@@ -848,6 +1050,10 @@ function guardarValidacionPago() {
 
     cerrarModalPago("modalValidarPago");
 
+    if (typeof ejecutarRecordatoriosAutomaticos === "function") {
+        ejecutarRecordatoriosAutomaticos();
+    }
+
     cargarPaginaPagos();
 
     alert("Pago validado correctamente.");
@@ -1132,13 +1338,16 @@ function obtenerEdificiosPermitidosVistaPago() {
     if (!sesion) return [];
 
     if (sesion.rol === "superadmin") {
-        return db.edificios || [];
+        return (db.edificios || []).filter(edificio =>
+            edificio.activo !== false
+        );
     }
 
     const ids = obtenerEdificiosPermitidosPago(sesion);
 
     return (db.edificios || []).filter(item =>
-        ids.includes(String(item.id))
+        ids.includes(String(item.id)) &&
+        item.activo !== false
     );
 }
 
@@ -1181,6 +1390,45 @@ function formatearTipoUnidadPagoVista(tipo) {
     }
 
     return "Departamento";
+}
+
+function formatearMontoPagoSeguro(monto) {
+    if (typeof formatearMontoPago === "function") {
+        return formatearMontoPago(monto);
+    }
+
+    const numero = Number(monto);
+
+    return Number.isFinite(numero)
+        ? numero.toFixed(2)
+        : "0.00";
+}
+
+function claseNivelMorosidadSeguro(nivel) {
+    if (typeof claseNivelMorosidad === "function") {
+        return claseNivelMorosidad(nivel);
+    }
+
+    if (nivel === "critica" || nivel === "alta") return "ocupado";
+    if (nivel === "media") return "pendiente";
+    if (nivel === "baja") return "badge-blue";
+
+    return "badge-blue";
+}
+
+function formatearNivelMorosidadSeguro(nivel) {
+    if (typeof formatearNivelMorosidad === "function") {
+        return formatearNivelMorosidad(nivel);
+    }
+
+    const niveles = {
+        baja: "Baja",
+        media: "Media",
+        alta: "Alta",
+        critica: "Crítica"
+    };
+
+    return niveles[nivel] || "Baja";
 }
 
 function abrirModalPago(id) {

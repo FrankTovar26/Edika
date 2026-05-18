@@ -875,3 +875,209 @@ function setText(id, valor) {
         elemento.textContent = valor;
     }
 }
+
+/* =========================================================
+   DASHBOARD FINANCIERO
+========================================================= */
+
+document.addEventListener("DOMContentLoaded", () => {
+    setTimeout(() => {
+        cargarDashboardFinanciero();
+        cargarDashboardAlertas();
+    }, 100);
+});
+
+function cargarDashboardFinanciero() {
+
+    const db = obtenerTodo();
+
+    const cuotas = db.cuotas || [];
+    const pagos = db.pagos || [];
+    const incidencias = db.incidencias || [];
+    const reservas = db.reservas || [];
+
+    let totalCobrado = 0;
+    let totalMorosidad = 0;
+    let totalFacturacion = 0;
+
+    let cuotasVencidas = 0;
+
+    cuotas.forEach(cuota => {
+
+        const monto = Number(cuota.monto || 0);
+
+        totalFacturacion += monto;
+
+        const estado = String(cuota.estado || "").toLowerCase();
+
+        if (estado === "pagado") {
+            totalCobrado += monto;
+        }
+
+        if (estado === "vencido") {
+            totalMorosidad += monto;
+            cuotasVencidas++;
+        }
+
+    });
+
+    const porcentajeCobranza =
+        totalFacturacion > 0
+            ? Math.round((totalCobrado / totalFacturacion) * 100)
+            : 0;
+
+    const incidenciasAbiertas = incidencias.filter(item => {
+        return ["abierto", "en proceso"]
+            .includes(String(item.estado || "").toLowerCase());
+    }).length;
+
+    const reservasActivas = reservas.filter(item => {
+        return ["aprobado", "pendiente"]
+            .includes(String(item.estado || "").toLowerCase());
+    }).length;
+
+    const pagosRegistrados = pagos.length;
+
+    setText("totalCobradoDashboard", `S/ ${formatearMonto(totalCobrado)}`);
+    setText("totalMorosidadDashboard", `S/ ${formatearMonto(totalMorosidad)}`);
+
+    setText("reservasPendientesDashboard", reservasActivas);
+    setText("incidenciasAbiertasDashboard", incidenciasAbiertas);
+
+    setText("facturacionMensualDashboard", `S/ ${formatearMonto(totalFacturacion)}`);
+    setText("pagosRegistradosDashboard", pagosRegistrados);
+
+    setText("cuotasVencidasDashboard", cuotasVencidas);
+
+    setText(
+        "porcentajeCobranzaDashboard",
+        `${porcentajeCobranza}%`
+    );
+
+}
+
+/* =========================================================
+   ALERTAS DASHBOARD
+========================================================= */
+
+function cargarDashboardAlertas() {
+
+    const db = obtenerTodo();
+
+    const cuotas = db.cuotas || [];
+    const incidencias = db.incidencias || [];
+    const reservas = db.reservas || [];
+
+    const contenedor = document.getElementById("dashboardAlertas");
+
+    if (!contenedor) return;
+
+    const alertas = [];
+
+    /* =========================
+       MOROSIDAD
+    ========================= */
+
+    const cuotasVencidas = cuotas.filter(c =>
+        String(c.estado || "").toLowerCase() === "vencido"
+    );
+
+    if (cuotasVencidas.length > 0) {
+
+        const total = cuotasVencidas.reduce((sum, item) => {
+            return sum + Number(item.monto || 0);
+        }, 0);
+
+        alertas.push(`
+            <div class="alert-card alert-danger">
+                <strong>Morosidad detectada</strong>
+                <p>
+                    Existen ${cuotasVencidas.length} cuota(s) vencida(s)
+                    por un total de S/ ${formatearMonto(total)}.
+                </p>
+            </div>
+        `);
+
+    }
+
+    /* =========================
+       INCIDENCIAS
+    ========================= */
+
+    const incidenciasAbiertas = incidencias.filter(i =>
+        ["abierto", "en proceso"]
+            .includes(String(i.estado || "").toLowerCase())
+    );
+
+    if (incidenciasAbiertas.length > 0) {
+
+        alertas.push(`
+            <div class="alert-card alert-warning">
+                <strong>Incidencias pendientes</strong>
+                <p>
+                    Hay ${incidenciasAbiertas.length}
+                    incidencia(s) aún sin resolver.
+                </p>
+            </div>
+        `);
+
+    }
+
+    /* =========================
+       MANTENIMIENTOS
+    ========================= */
+
+    const reservasMantenimiento = reservas.filter(r =>
+        String(r.estado || "").toLowerCase() === "mantenimiento"
+    );
+
+    if (reservasMantenimiento.length > 0) {
+
+        alertas.push(`
+            <div class="alert-card alert-info">
+                <strong>Áreas en mantenimiento</strong>
+                <p>
+                    Existen ${reservasMantenimiento.length}
+                    reserva(s) bloqueadas por mantenimiento.
+                </p>
+            </div>
+        `);
+
+    }
+
+    /* =========================
+       SIN ALERTAS
+    ========================= */
+
+    if (alertas.length === 0) {
+
+        contenedor.innerHTML = `
+            <div class="alert-card alert-success">
+                <strong>Todo en orden</strong>
+                <p>
+                    No existen alertas importantes actualmente.
+                </p>
+            </div>
+        `;
+
+        return;
+    }
+
+    contenedor.innerHTML = alertas.join("");
+
+}
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+function formatearMonto(valor) {
+
+    const numero = Number(valor || 0);
+
+    return numero.toLocaleString("es-PE", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+
+}

@@ -16,12 +16,18 @@
         <div>
             <h1>Gestión de Pagos</h1>
             <p class="page-subtitle">
-                Genera cuotas, controla pagos pendientes y valida comprobantes de residentes.
+                Genera cuotas, controla pagos pendientes, valida comprobantes y supervisa la morosidad.
             </p>
+        </div>
+
+        <div class="page-actions">
+            <button type="button" class="btn btn-secondary" id="btnEjecutarRecordatorios">
+                Ejecutar recordatorios
+            </button>
         </div>
     </section>
 
-    <!-- RESUMEN -->
+    <!-- RESUMEN FINANCIERO -->
     <section class="stats-grid">
         <div class="card stat-card">
             <span class="stat-kpi-icon">TF</span>
@@ -42,6 +48,12 @@
         </div>
 
         <div class="card stat-card">
+            <span class="stat-kpi-icon danger">TV</span>
+            <span class="stat-number" id="totalVencido">S/ 0.00</span>
+            <label>Total vencido</label>
+        </div>
+
+        <div class="card stat-card">
             <span class="stat-kpi-icon warning">PE</span>
             <span class="stat-number" id="cuotasPendientes">0</span>
             <label>Cuotas pendientes</label>
@@ -54,9 +66,31 @@
         </div>
 
         <div class="card stat-card">
+            <span class="stat-kpi-icon warning">MO</span>
+            <span class="stat-number" id="unidadesMorosas">0</span>
+            <label>Unidades morosas</label>
+        </div>
+
+        <div class="card stat-card">
             <span class="stat-kpi-icon success">%</span>
             <span class="stat-number" id="porcentajeCobranza">0%</span>
             <label>Cobranza</label>
+        </div>
+    </section>
+
+    <!-- ALERTAS FINANCIERAS -->
+    <section class="card">
+        <div class="section-header">
+            <div>
+                <h2>Alertas financieras</h2>
+                <p class="section-subtitle">
+                    Avisos automáticos sobre vencimientos, morosidad y comprobantes pendientes.
+                </p>
+            </div>
+        </div>
+
+        <div id="alertasFinancieras">
+            <p class="empty-text">No hay alertas financieras por el momento.</p>
         </div>
     </section>
 
@@ -124,11 +158,7 @@
 
                 <div class="group">
                     <label for="periodoCuota">Periodo</label>
-                    <input 
-                        type="month" 
-                        id="periodoCuota"
-                        required
-                    >
+                    <input type="month" id="periodoCuota" required>
                 </div>
 
                 <div class="group">
@@ -145,11 +175,7 @@
 
                 <div class="group">
                     <label for="fechaVencimientoCuota">Fecha vencimiento</label>
-                    <input 
-                        type="date" 
-                        id="fechaVencimientoCuota"
-                        required
-                    >
+                    <input type="date" id="fechaVencimientoCuota" required>
                 </div>
             </div>
 
@@ -324,6 +350,56 @@
             </table>
         </div>
     </section>
+
+    <!-- MOROSIDAD -->
+    <section class="card">
+        <div class="section-header">
+            <div>
+                <h2>Ranking de morosidad</h2>
+                <p class="section-subtitle">
+                    Unidades con cuotas vencidas ordenadas por monto pendiente.
+                </p>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Unidad</th>
+                        <th>Edificio</th>
+                        <th>Residente</th>
+                        <th>Cuotas vencidas</th>
+                        <th>Total vencido</th>
+                        <th>Días máx.</th>
+                        <th>Nivel</th>
+                    </tr>
+                </thead>
+
+                <tbody id="tablaMorosidadAdmin">
+                    <tr>
+                        <td colspan="7">No hay unidades morosas.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- RESUMEN POR EDIFICIO -->
+    <section class="card">
+        <div class="section-header">
+            <div>
+                <h2>Resumen financiero por edificio</h2>
+                <p class="section-subtitle">
+                    Comparativo de cobranza, deuda y morosidad por edificio.
+                </p>
+            </div>
+        </div>
+
+        <div id="resumenFinancieroEdificios" class="resumen-edificios-grid">
+            <p class="empty-text">Cargando resumen financiero...</p>
+        </div>
+    </section>
 </main>
 
 <!-- MODAL DETALLE CUOTA -->
@@ -394,6 +470,9 @@
 <script src="../../assets/js/core/data.js"></script>
 <script src="../../assets/js/services/anuncios.service.js"></script>
 <script src="../../assets/js/services/pagos.service.js"></script>
+<script src="../../assets/js/services/recordatorios.service.js"></script>
+<script src="../../assets/js/services/morosidad.service.js"></script>
+<script src="../../assets/js/services/dashboard-financiero.service.js"></script>
 <script src="../../assets/js/components/sidebar.js"></script>
 <script src="../../assets/js/pages/pagos.js"></script>
 

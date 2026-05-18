@@ -12,26 +12,52 @@
 <nav id="sidebar"></nav>
 
 <main>
+
+    <!-- HEADER -->
     <section class="page-header">
         <div>
             <h1 id="tituloEdificio">Cargando...</h1>
+
             <p class="page-subtitle">
-                Resumen general de unidades, ocupación y disponibilidad por edificio.
+                Panel central de administración del edificio.
             </p>
         </div>
 
         <div class="page-actions">
+
             <a href="config.html" class="btn btn-blue">
-                + Configurar edificio
+                Configuración
             </a>
 
             <a href="departamentos.html" class="btn btn-green">
                 Gestionar unidades
             </a>
+
         </div>
     </section>
 
+    <!-- ALERTAS -->
+    <section class="card">
+        <div class="section-header">
+            <div>
+                <h2>Alertas importantes</h2>
+
+                <p class="section-subtitle">
+                    Situaciones que requieren atención inmediata.
+                </p>
+            </div>
+        </div>
+
+        <div id="dashboardAlertas">
+            <p class="empty-text">
+                No hay alertas registradas.
+            </p>
+        </div>
+    </section>
+
+    <!-- MÉTRICAS -->
     <section class="stats-grid">
+
         <div class="card stat-card">
             <span class="stat-kpi-icon">UN</span>
             <span class="stat-number" id="totalUnidades">0</span>
@@ -39,37 +65,13 @@
         </div>
 
         <div class="card stat-card">
-            <span class="stat-kpi-icon">DP</span>
-            <span class="stat-number" id="totalDepartamentos">0</span>
-            <label>Departamentos</label>
-        </div>
-
-        <div class="card stat-card">
-            <span class="stat-kpi-icon">ES</span>
-            <span class="stat-number" id="totalEstacionamientos">0</span>
-            <label>Estacionamientos</label>
-        </div>
-
-        <div class="card stat-card">
-            <span class="stat-kpi-icon">DE</span>
-            <span class="stat-number" id="totalDepositos">0</span>
-            <label>Depósitos</label>
-        </div>
-
-        <div class="card stat-card">
-            <span class="stat-kpi-icon">OF</span>
-            <span class="stat-number" id="totalOficinas">0</span>
-            <label>Oficinas / locales</label>
-        </div>
-
-        <div class="card stat-card">
-            <span class="stat-kpi-icon danger">OC</span>
+            <span class="stat-kpi-icon success">OC</span>
             <span class="stat-number" id="unidadesOcupadas">0</span>
             <label>Ocupadas</label>
         </div>
 
         <div class="card stat-card">
-            <span class="stat-kpi-icon success">DI</span>
+            <span class="stat-kpi-icon">DI</span>
             <span class="stat-number" id="unidadesDisponibles">0</span>
             <label>Disponibles</label>
         </div>
@@ -85,14 +87,85 @@
             <span class="stat-number" id="porcentajeOcupacion">0%</span>
             <label>Ocupación</label>
         </div>
+
+        <div class="card stat-card">
+            <span class="stat-kpi-icon success">S/</span>
+            <span class="stat-number" id="totalCobradoDashboard">S/ 0</span>
+            <label>Cobrado</label>
+        </div>
+
+        <div class="card stat-card">
+            <span class="stat-kpi-icon danger">MO</span>
+            <span class="stat-number" id="totalMorosidadDashboard">S/ 0</span>
+            <label>Morosidad</label>
+        </div>
+
+        <div class="card stat-card">
+            <span class="stat-kpi-icon warning">RE</span>
+            <span class="stat-number" id="reservasPendientesDashboard">0</span>
+            <label>Reservas activas</label>
+        </div>
+
+        <div class="card stat-card">
+            <span class="stat-kpi-icon danger">IN</span>
+            <span class="stat-number" id="incidenciasAbiertasDashboard">0</span>
+            <label>Incidencias abiertas</label>
+        </div>
+
     </section>
 
+    <!-- ACCESOS RÁPIDOS -->
     <section class="card">
+
+        <div class="section-header">
+            <div>
+                <h2>Accesos rápidos</h2>
+
+                <p class="section-subtitle">
+                    Acciones frecuentes del administrador.
+                </p>
+            </div>
+        </div>
+
+        <div class="quick-actions-grid">
+
+            <a href="areas.html" class="quick-action-card">
+                <div class="quick-action-icon">RS</div>
+                <h3>Reservas</h3>
+                <p>Gestionar áreas comunes y mantenimientos.</p>
+            </a>
+
+            <a href="incidencias.html" class="quick-action-card">
+                <div class="quick-action-icon">IN</div>
+                <h3>Incidencias</h3>
+                <p>Atender reportes de residentes.</p>
+            </a>
+
+            <a href="pagos.html" class="quick-action-card">
+                <div class="quick-action-icon">PG</div>
+                <h3>Pagos</h3>
+                <p>Control financiero y cuotas.</p>
+            </a>
+
+            <a href="anuncios.html" class="quick-action-card">
+                <div class="quick-action-icon">AN</div>
+                <h3>Anuncios</h3>
+                <p>Publicaciones y comunicados.</p>
+            </a>
+
+        </div>
+
+    </section>
+
+    <!-- RESUMEN EDIFICIOS -->
+    <section class="card">
+
         <div class="section-header">
             <div>
                 <h2>Resumen por edificio</h2>
+
                 <p class="section-subtitle">
-                    Visualiza rápidamente la distribución de unidades por cada edificio activo.
+                    Distribución general de unidades y ocupación.
                 </p>
             </div>
         </div>
@@ -100,14 +173,57 @@
         <div id="resumenEdificios" class="resumen-edificios-grid">
             <p class="empty-text">Cargando resumen...</p>
         </div>
+
     </section>
 
+    <!-- DASHBOARD FINANCIERO -->
     <section class="card">
+
+        <div class="section-header">
+            <div>
+                <h2>Resumen financiero</h2>
+
+                <p class="section-subtitle">
+                    Estado actual de cobranzas y morosidad.
+                </p>
+            </div>
+        </div>
+
+        <div id="dashboardFinancieroResumen" class="financial-summary-grid">
+
+            <div class="mini-card">
+                <strong>Facturación mensual</strong>
+                <p id="facturacionMensualDashboard">S/ 0.00</p>
+            </div>
+
+            <div class="mini-card">
+                <strong>Pagos registrados</strong>
+                <p id="pagosRegistradosDashboard">0</p>
+            </div>
+
+            <div class="mini-card">
+                <strong>Cuotas vencidas</strong>
+                <p id="cuotasVencidasDashboard">0</p>
+            </div>
+
+            <div class="mini-card">
+                <strong>Porcentaje cobranza</strong>
+                <p id="porcentajeCobranzaDashboard">0%</p>
+            </div>
+
+        </div>
+
+    </section>
+
+    <!-- FILTROS -->
+    <section class="card">
+
         <div class="section-header">
             <div>
                 <h2>Filtros</h2>
+
                 <p class="section-subtitle">
-                    Filtra unidades por edificio, ubicación, tipo o estado.
+                    Filtra unidades por edificio, tipo o estado.
                 </p>
             </div>
 
@@ -117,8 +233,10 @@
         </div>
 
         <div class="form-group-container">
+
             <div class="group">
                 <label for="filtroEdificio">Edificio</label>
+
                 <select id="filtroEdificio">
                     <option value="">Todos los edificios</option>
                 </select>
@@ -126,18 +244,25 @@
 
             <div class="group">
                 <label for="filtroBusqueda">Buscar unidad</label>
-                <input type="text" id="filtroBusqueda" placeholder="Ej: 101, E-S1-01, OF-101">
+
+                <input
+                    type="text"
+                    id="filtroBusqueda"
+                    placeholder="Ej: 101, E-S1-01"
+                >
             </div>
 
             <div class="group">
                 <label for="filtroPiso">Ubicación / Piso</label>
+
                 <select id="filtroPiso">
                     <option value="">Todos</option>
                 </select>
             </div>
 
             <div class="group">
-                <label for="filtroTipo">Tipo de unidad</label>
+                <label for="filtroTipo">Tipo</label>
+
                 <select id="filtroTipo">
                     <option value="">Todos</option>
                     <option value="departamento">Departamento</option>
@@ -149,29 +274,37 @@
 
             <div class="group">
                 <label for="filtroEstado">Estado</label>
+
                 <select id="filtroEstado">
                     <option value="">Todos</option>
                     <option value="disponible">Disponible</option>
                     <option value="ocupada">Ocupada</option>
-                    <option value="mantenimiento">En mantenimiento</option>
+                    <option value="mantenimiento">Mantenimiento</option>
                     <option value="inactiva">Inactiva</option>
                 </select>
             </div>
+
         </div>
+
     </section>
 
+    <!-- TABLA -->
     <section class="card">
+
         <div class="section-header">
             <div>
-                <h2>Unidades</h2>
+                <h2>Unidades registradas</h2>
+
                 <p class="section-subtitle">
-                    Listado de unidades registradas y generadas por edificio.
+                    Visualiza todas las unidades del edificio.
                 </p>
             </div>
         </div>
 
         <div class="table-container">
+
             <table>
+
                 <thead>
                     <tr>
                         <th>Edificio</th>
@@ -185,35 +318,53 @@
                 </thead>
 
                 <tbody id="tablaUnidades">
+
                     <tr>
-                        <td colspan="7">Cargando unidades...</td>
+                        <td colspan="7">
+                            Cargando unidades...
+                        </td>
                     </tr>
+
                 </tbody>
+
             </table>
+
         </div>
+
     </section>
+
 </main>
 
-<!-- MODAL DETALLE UNIDAD -->
+<!-- MODAL DETALLE -->
 <div id="modalDetalle" class="modal">
+
     <div class="modal-content">
-        <span class="close-btn" id="cerrarModal">&times;</span>
-        <h2>Detalle Unidad</h2>
+
+        <span class="close-btn" id="cerrarModal">
+            &times;
+        </span>
+
+        <h2>Detalle unidad</h2>
+
         <div id="detalleUnidad"></div>
+
     </div>
+
 </div>
 
-<!-- MODAL PRIMERA CONFIGURACIÓN -->
+<!-- MODAL PRIMERA CONFIG -->
 <div id="modalPrimeraConfiguracion" class="modal">
+
     <div class="modal-content">
+
         <h2>Primera configuración requerida</h2>
 
         <p>
             Aún no tienes edificios configurados o asignados.
-            Para usar el sistema EDIFIKA, primero debes registrar la configuración inicial del edificio.
         </p>
 
-        <div class="form-actions" style="justify-content: flex-end;">
+        <div class="form-actions" style="justify-content:flex-end;">
+
             <button class="btn btn-secondary" id="btnCancelarPrimeraConfig">
                 Más tarde
             </button>
@@ -221,13 +372,22 @@
             <button class="btn btn-blue" id="btnIrPrimeraConfig">
                 Configurar edificio
             </button>
+
         </div>
+
     </div>
+
 </div>
 
 <script src="../../assets/js/core/data.js"></script>
-<script src="../../assets/js/components/sidebar.js"></script>
+
 <script src="../../assets/js/services/dashboard.service.js"></script>
+<script src="../../assets/js/services/dashboard-financiero.service.js"></script>
+<script src="../../assets/js/services/morosidad.service.js"></script>
+<script src="../../assets/js/services/recordatorios.service.js"></script>
+
+<script src="../../assets/js/components/sidebar.js"></script>
 <script src="../../assets/js/pages/dashboard.js"></script>
+
 </body>
 </html>

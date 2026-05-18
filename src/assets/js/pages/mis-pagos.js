@@ -3,6 +3,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
     inicializarPagosService();
 
+    if (typeof inicializarRecordatoriosService === "function") {
+        inicializarRecordatoriosService();
+    }
+
+    if (typeof inicializarMorosidadService === "function") {
+        inicializarMorosidadService();
+    }
+
+    if (typeof inicializarDashboardFinancieroService === "function") {
+        inicializarDashboardFinancieroService();
+    }
+
+    if (typeof ejecutarRecordatoriosAutomaticos === "function") {
+        ejecutarRecordatoriosAutomaticos();
+    }
+
     cargarPaginaMisPagos();
 
     configurarFiltrosMisPagos();
@@ -17,7 +33,6 @@ document.addEventListener("DOMContentLoaded", () => {
 ========================================================= */
 
 function protegerPaginaMisPagos() {
-
     const sesion = obtenerSesionMisPagos();
 
     if (!sesion) {
@@ -36,13 +51,12 @@ function protegerPaginaMisPagos() {
 ========================================================= */
 
 function cargarPaginaMisPagos() {
-
     const cuotas = obtenerCuotasFiltradasResidente();
     const pagos = obtenerPagosFiltradosResidente();
 
     cargarMetricasResidente(cuotas);
-
     renderizarEstadoFinanciero(cuotas);
+    renderizarAlertasPagosResidente(cuotas, pagos);
 
     renderizarTablaMisPagos(cuotas);
     renderizarHistorialPagos(pagos);
@@ -53,47 +67,78 @@ function cargarPaginaMisPagos() {
 ========================================================= */
 
 function cargarMetricasResidente(cuotas) {
+    let metricas;
 
-    const metricas = calcularMetricasCuotas(cuotas);
+    if (typeof obtenerResumenFinancieroResidente === "function") {
+        metricas = obtenerResumenFinancieroResidente().metricas;
+    } else {
+        metricas = calcularMetricasCuotas(cuotas);
+    }
 
-    setTextMisPagos(
-        "totalCuotasResidente",
-        metricas.totalCuotas
-    );
+    setTextMisPagos("totalCuotasResidente", metricas.totalCuotas || 0);
 
     setTextMisPagos(
         "cuotasPendientesResidente",
-        metricas.pendientes
+        metricas.cuotasPendientes ?? metricas.pendientes ?? 0
     );
 
     setTextMisPagos(
         "cuotasVencidasResidente",
-        metricas.vencidas
+        metricas.cuotasVencidas ?? metricas.vencidas ?? 0
     );
 
     setTextMisPagos(
         "cuotasPagadasResidente",
-        metricas.pagadas
+        metricas.cuotasPagadas ?? metricas.pagadas ?? 0
     );
 
     setTextMisPagos(
         "totalPendienteResidente",
-        `S/ ${formatearMontoPago(metricas.totalPendiente)}`
+        `S/ ${formatearMontoMisPagosSeguro(metricas.totalPendiente)}`
     );
 
     setTextMisPagos(
         "porcentajePagadoResidente",
-        `${metricas.porcentajeCobranza}%`
+        `${metricas.porcentajeCobranza || 0}%`
     );
 }
 
 function renderizarEstadoFinanciero(cuotas) {
-
-    const contenedor = document.getElementById(
-        "mensajeEstadoFinanciero"
-    );
+    const contenedor = document.getElementById("mensajeEstadoFinanciero");
 
     if (!contenedor) return;
+
+    if (typeof obtenerEstadoFinancieroResidente === "function") {
+        const estado = obtenerEstadoFinancieroResidente();
+
+        if (estado.estado === "moroso") {
+            contenedor.innerHTML = `
+                <strong style="color:#e74c3c;">
+                    ${escapeHTMLMisPagos(estado.mensaje)}
+                </strong>
+                Total vencido: S/ ${formatearMontoMisPagosSeguro(estado.totalVencido)}.
+            `;
+            return;
+        }
+
+        if (estado.estado === "pendiente") {
+            contenedor.innerHTML = `
+                <strong style="color:#b7791f;">
+                    ${escapeHTMLMisPagos(estado.mensaje)}
+                </strong>
+                Total pendiente: S/ ${formatearMontoMisPagosSeguro(estado.totalPendiente)}.
+            `;
+            return;
+        }
+
+        contenedor.innerHTML = `
+            <strong style="color:#27ae60;">
+                ${escapeHTMLMisPagos(estado.mensaje)}
+            </strong>
+            Gracias por mantener tus pagos al día.
+        `;
+        return;
+    }
 
     const pendientes = cuotas.filter(item =>
         normalizarEstadoCuota(item.estado) === "pendiente"
@@ -108,33 +153,26 @@ function renderizarEstadoFinanciero(cuotas) {
     ).length;
 
     if (vencidas > 0) {
-
         contenedor.innerHTML = `
             <strong style="color:#e74c3c;">
                 Tienes ${vencidas} cuota(s) vencida(s).
             </strong>
             Regulariza tus pagos para evitar restricciones.
         `;
-
         return;
     }
 
     if (pendientes > 0) {
-
         contenedor.innerHTML = `
-            Tienes ${pendientes} cuota(s) pendiente(s)
-            de pago.
+            Tienes ${pendientes} cuota(s) pendiente(s) de pago.
         `;
-
         return;
     }
 
     if (observadas > 0) {
-
         contenedor.innerHTML = `
             Tienes comprobantes pendientes de validación.
         `;
-
         return;
     }
 
@@ -147,11 +185,95 @@ function renderizarEstadoFinanciero(cuotas) {
 }
 
 /* =========================================================
+   ALERTAS RESIDENTE
+========================================================= */
+
+function renderizarAlertasPagosResidente(cuotas, pagos) {
+    const contenedor = document.getElementById("alertasPagosResidente");
+
+    if (!contenedor) return;
+
+    const alertas = [];
+
+    const vencidas = cuotas.filter(cuota =>
+        normalizarEstadoCuota(cuota.estado) === "vencido"
+    );
+
+    const pendientes = cuotas.filter(cuota =>
+        normalizarEstadoCuota(cuota.estado) === "pendiente"
+    );
+
+    const observadas = cuotas.filter(cuota =>
+        normalizarEstadoCuota(cuota.estado) === "observado"
+    );
+
+    const pagosRechazados = pagos.filter(pago =>
+        normalizarEstadoPago(pago.estadoValidacion) === "rechazado"
+    );
+
+    if (vencidas.length > 0) {
+        const total = vencidas.reduce((sum, cuota) => {
+            return sum + Number(cuota.monto || 0);
+        }, 0);
+
+        alertas.push({
+            prioridad: "alta",
+            titulo: "Cuotas vencidas",
+            mensaje: `Tienes ${vencidas.length} cuota(s) vencida(s) por S/ ${formatearMontoMisPagosSeguro(total)}.`
+        });
+    }
+
+    if (pendientes.length > 0) {
+        alertas.push({
+            prioridad: "media",
+            titulo: "Pagos pendientes",
+            mensaje: `Tienes ${pendientes.length} cuota(s) pendiente(s) de pago.`
+        });
+    }
+
+    if (observadas.length > 0) {
+        alertas.push({
+            prioridad: "normal",
+            titulo: "Comprobantes en revisión",
+            mensaje: `Tienes ${observadas.length} comprobante(s) pendiente(s) de validación.`
+        });
+    }
+
+    if (pagosRechazados.length > 0) {
+        alertas.push({
+            prioridad: "alta",
+            titulo: "Comprobantes observados",
+            mensaje: `Tienes ${pagosRechazados.length} comprobante(s) rechazado(s). Revisa la observación y vuelve a registrar el pago.`
+        });
+    }
+
+    if (alertas.length === 0) {
+        contenedor.innerHTML = `
+            <p class="empty-text">No tienes alertas pendientes.</p>
+        `;
+        return;
+    }
+
+    contenedor.innerHTML = alertas.map(alerta => `
+        <div class="alert-card ${claseAlertaMisPagos(alerta.prioridad)}">
+            <strong>${escapeHTMLMisPagos(alerta.titulo)}</strong>
+            <p>${escapeHTMLMisPagos(alerta.mensaje)}</p>
+        </div>
+    `).join("");
+}
+
+function claseAlertaMisPagos(prioridad) {
+    if (prioridad === "alta") return "alert-danger";
+    if (prioridad === "media") return "alert-warning";
+
+    return "alert-info";
+}
+
+/* =========================================================
    FILTROS
 ========================================================= */
 
 function configurarFiltrosMisPagos() {
-
     const filtros = [
         "filtroEstadoPagoResidente",
         "filtroPeriodoPagoResidente",
@@ -160,27 +282,17 @@ function configurarFiltrosMisPagos() {
     ];
 
     filtros.forEach(id => {
-
         const elemento = document.getElementById(id);
 
         if (!elemento) return;
 
-        elemento.addEventListener(
-            "input",
-            cargarPaginaMisPagos
-        );
-
-        elemento.addEventListener(
-            "change",
-            cargarPaginaMisPagos
-        );
+        elemento.addEventListener("input", cargarPaginaMisPagos);
+        elemento.addEventListener("change", cargarPaginaMisPagos);
     });
 
     document.getElementById("btnLimpiarFiltrosPagos")
         ?.addEventListener("click", () => {
-
             filtros.forEach(id => {
-
                 const elemento = document.getElementById(id);
 
                 if (elemento) {
@@ -193,28 +305,14 @@ function configurarFiltrosMisPagos() {
 }
 
 function obtenerCuotasFiltradasResidente() {
-
     let cuotas = obtenerCuotasVisiblesResidente();
 
-    const estado =
-        document.getElementById(
-            "filtroEstadoPagoResidente"
-        )?.value || "";
-
-    const periodo =
-        document.getElementById(
-            "filtroPeriodoPagoResidente"
-        )?.value || "";
-
-    const tipo =
-        document.getElementById(
-            "filtroTipoPagoResidente"
-        )?.value || "";
+    const estado = document.getElementById("filtroEstadoPagoResidente")?.value || "";
+    const periodo = document.getElementById("filtroPeriodoPagoResidente")?.value || "";
+    const tipo = document.getElementById("filtroTipoPagoResidente")?.value || "";
 
     const busqueda = (
-        document.getElementById(
-            "buscarPagoResidente"
-        )?.value || ""
+        document.getElementById("buscarPagoResidente")?.value || ""
     ).toLowerCase().trim();
 
     if (estado) {
@@ -237,7 +335,6 @@ function obtenerCuotasFiltradasResidente() {
 
     if (busqueda) {
         cuotas = cuotas.filter(item => {
-
             const texto = `
                 ${item.concepto || ""}
                 ${item.periodo || ""}
@@ -255,7 +352,6 @@ function obtenerCuotasFiltradasResidente() {
 }
 
 function obtenerPagosFiltradosResidente() {
-
     return obtenerPagosVisiblesResidente()
         .sort((a, b) =>
             String(b.fechaRegistro || "").localeCompare(
@@ -269,13 +365,11 @@ function obtenerPagosFiltradosResidente() {
 ========================================================= */
 
 function renderizarTablaMisPagos(cuotas) {
-
     const tabla = document.getElementById("tablaMisPagos");
 
     if (!tabla) return;
 
     if (cuotas.length === 0) {
-
         tabla.innerHTML = `
             <tr>
                 <td colspan="7">
@@ -283,18 +377,13 @@ function renderizarTablaMisPagos(cuotas) {
                 </td>
             </tr>
         `;
-
         return;
     }
 
     tabla.innerHTML = cuotas.map(cuota => `
-
         <tr>
-
             <td>
-                <strong>
-                    ${escapeHTMLMisPagos(cuota.concepto)}
-                </strong>
+                <strong>${escapeHTMLMisPagos(cuota.concepto)}</strong>
             </td>
 
             <td>
@@ -303,17 +392,11 @@ function renderizarTablaMisPagos(cuotas) {
                 </span>
             </td>
 
-            <td>
-                ${escapeHTMLMisPagos(cuota.periodo)}
-            </td>
+            <td>${escapeHTMLMisPagos(cuota.periodo)}</td>
 
-            <td>
-                S/ ${formatearMontoPago(cuota.monto)}
-            </td>
+            <td>S/ ${formatearMontoPago(cuota.monto)}</td>
 
-            <td>
-                ${formatearFechaPago(cuota.fechaVencimiento)}
-            </td>
+            <td>${formatearFechaPago(cuota.fechaVencimiento)}</td>
 
             <td>
                 <span class="badge ${claseEstadoCuota(cuota.estado)}">
@@ -322,7 +405,6 @@ function renderizarTablaMisPagos(cuotas) {
             </td>
 
             <td class="table-actions">
-
                 <button
                     class="btn btn-blue"
                     onclick="verDetallePagoResidente('${cuota.id}')"
@@ -331,16 +413,12 @@ function renderizarTablaMisPagos(cuotas) {
                 </button>
 
                 ${renderizarBotonPagar(cuota)}
-
             </td>
-
         </tr>
-
     `).join("");
 }
 
 function renderizarBotonPagar(cuota) {
-
     const estado = normalizarEstadoCuota(cuota.estado);
 
     if (
@@ -366,15 +444,11 @@ function renderizarBotonPagar(cuota) {
 ========================================================= */
 
 function renderizarHistorialPagos(pagos) {
-
-    const tabla = document.getElementById(
-        "tablaHistorialPagos"
-    );
+    const tabla = document.getElementById("tablaHistorialPagos");
 
     if (!tabla) return;
 
     if (pagos.length === 0) {
-
         tabla.innerHTML = `
             <tr>
                 <td colspan="7">
@@ -382,55 +456,29 @@ function renderizarHistorialPagos(pagos) {
                 </td>
             </tr>
         `;
-
         return;
     }
 
     tabla.innerHTML = pagos.map(pago => {
-
         const cuota = obtenerCuotaPorId(pago.cuotaId);
 
         if (!cuota) return "";
 
         return `
             <tr>
+                <td>${escapeHTMLMisPagos(cuota.concepto)}</td>
+                <td>${escapeHTMLMisPagos(pago.banco)}</td>
+                <td>${escapeHTMLMisPagos(pago.numeroOperacion)}</td>
+                <td>${formatearFechaPago(pago.fechaPago)}</td>
+                <td>S/ ${formatearMontoPago(pago.montoDeclarado)}</td>
 
                 <td>
-                    ${escapeHTMLMisPagos(cuota.concepto)}
-                </td>
-
-                <td>
-                    ${escapeHTMLMisPagos(pago.banco)}
-                </td>
-
-                <td>
-                    ${escapeHTMLMisPagos(pago.numeroOperacion)}
-                </td>
-
-                <td>
-                    ${formatearFechaPago(pago.fechaPago)}
-                </td>
-
-                <td>
-                    S/ ${formatearMontoPago(
-                        pago.montoDeclarado
-                    )}
-                </td>
-
-                <td>
-
-                    <span class="badge ${claseEstadoPago(
-                        pago.estadoValidacion
-                    )}">
-                        ${formatearEstadoPago(
-                            pago.estadoValidacion
-                        )}
+                    <span class="badge ${claseEstadoPago(pago.estadoValidacion)}">
+                        ${formatearEstadoPago(pago.estadoValidacion)}
                     </span>
-
                 </td>
 
                 <td class="table-actions">
-
                     <button
                         class="btn btn-blue"
                         onclick="verVoucherResidente('${pago.id}')"
@@ -438,12 +486,26 @@ function renderizarHistorialPagos(pagos) {
                         Ver
                     </button>
 
+                    ${renderizarBotonReenviarPago(pago)}
                 </td>
-
             </tr>
         `;
-
     }).join("");
+}
+
+function renderizarBotonReenviarPago(pago) {
+    const estado = normalizarEstadoPago(pago.estadoValidacion);
+
+    if (estado !== "rechazado") return "";
+
+    return `
+        <button
+            class="btn btn-green"
+            onclick="abrirModalRegistrarPago('${pago.cuotaId}')"
+        >
+            Reenviar
+        </button>
+    `;
 }
 
 /* =========================================================
@@ -451,32 +513,21 @@ function renderizarHistorialPagos(pagos) {
 ========================================================= */
 
 function configurarModalDetallePago() {
-
-    document.getElementById(
-        "cerrarModalDetallePagoResidente"
-    )?.addEventListener("click", () => {
-
-        cerrarModalMisPagos(
-            "modalDetallePagoResidente"
-        );
-    });
+    document.getElementById("cerrarModalDetallePagoResidente")
+        ?.addEventListener("click", () => {
+            cerrarModalMisPagos("modalDetallePagoResidente");
+        });
 
     window.addEventListener("click", event => {
-
-        const modal = document.getElementById(
-            "modalDetallePagoResidente"
-        );
+        const modal = document.getElementById("modalDetallePagoResidente");
 
         if (event.target === modal) {
-            cerrarModalMisPagos(
-                "modalDetallePagoResidente"
-            );
+            cerrarModalMisPagos("modalDetallePagoResidente");
         }
     });
 }
 
 function verDetallePagoResidente(idCuota) {
-
     const cuota = obtenerCuotaPorId(idCuota);
 
     if (!cuota) {
@@ -484,182 +535,102 @@ function verDetallePagoResidente(idCuota) {
         return;
     }
 
-    const detalle = document.getElementById(
-        "detallePagoResidente"
-    );
+    const detalle = document.getElementById("detallePagoResidente");
 
     if (!detalle) return;
 
     detalle.innerHTML = `
-
         <div class="detail-grid">
-
             <div class="detail-card">
-
-                <h3>
-                    ${escapeHTMLMisPagos(cuota.concepto)}
-                </h3>
+                <h3>${escapeHTMLMisPagos(cuota.concepto)}</h3>
 
                 <div class="detail-meta">
-
-                    <div>
-                        <strong>Tipo:</strong>
-                        ${formatearTipoCuota(cuota.tipo)}
-                    </div>
-
-                    <div>
-                        <strong>Periodo:</strong>
-                        ${escapeHTMLMisPagos(cuota.periodo)}
-                    </div>
-
-                    <div>
-                        <strong>Monto:</strong>
-                        S/ ${formatearMontoPago(cuota.monto)}
-                    </div>
-
-                    <div>
-                        <strong>Vencimiento:</strong>
-                        ${formatearFechaPago(
-                            cuota.fechaVencimiento
-                        )}
-                    </div>
-
+                    <div><strong>Tipo:</strong> ${formatearTipoCuota(cuota.tipo)}</div>
+                    <div><strong>Periodo:</strong> ${escapeHTMLMisPagos(cuota.periodo)}</div>
+                    <div><strong>Monto:</strong> S/ ${formatearMontoPago(cuota.monto)}</div>
+                    <div><strong>Vencimiento:</strong> ${formatearFechaPago(cuota.fechaVencimiento)}</div>
                     <div>
                         <strong>Estado:</strong>
-
-                        <span class="badge ${claseEstadoCuota(
-                            cuota.estado
-                        )}">
-                            ${formatearEstadoCuota(
-                                cuota.estado
-                            )}
+                        <span class="badge ${claseEstadoCuota(cuota.estado)}">
+                            ${formatearEstadoCuota(cuota.estado)}
                         </span>
-
                     </div>
-
                 </div>
 
                 ${renderizarObservacionCuotaResidente(cuota)}
-
             </div>
 
             ${renderizarComprobanteBaseResidente(cuota)}
-
         </div>
 
         ${renderizarHistorialCuotaResidente(cuota)}
-
     `;
 
-    abrirModalMisPagos(
-        "modalDetallePagoResidente"
-    );
+    abrirModalMisPagos("modalDetallePagoResidente");
 }
 
 function renderizarObservacionCuotaResidente(cuota) {
-
     if (!cuota.observacion) return "";
 
     return `
         <section class="detail-section">
-
             <h3>Observación</h3>
-
             <div class="detail-observation">
                 ${escapeHTMLMisPagos(cuota.observacion)}
             </div>
-
         </section>
     `;
 }
 
 function renderizarComprobanteBaseResidente(cuota) {
-
     if (!cuota.comprobanteBase) return "";
 
-    if (
-        String(cuota.comprobanteBase)
-            .includes("application/pdf")
-    ) {
-
+    if (String(cuota.comprobanteBase).includes("application/pdf")) {
         return `
             <div class="detail-image-container">
-
                 <iframe
                     src="${cuota.comprobanteBase}"
                     class="pdf-viewer"
                 ></iframe>
-
             </div>
         `;
     }
 
     return `
         <div class="detail-image-container">
-
             <img
                 src="${cuota.comprobanteBase}"
                 class="detail-image"
                 alt="Comprobante base"
             >
-
         </div>
     `;
 }
 
 function renderizarHistorialCuotaResidente(cuota) {
-
     const historial = cuota.historial || [];
 
     if (historial.length === 0) return "";
 
     return `
         <section class="detail-section">
-
             <h3>Historial</h3>
 
             <div class="timeline">
-
                 ${historial.map(item => `
-
                     <div class="timeline-item">
-
-                        <div class="timeline-badge ${claseEstadoCuota(
-                            item.estado
-                        )}">
-                            ${formatearEstadoCuota(
-                                item.estado
-                            )}
+                        <div class="timeline-badge ${claseEstadoCuota(item.estado)}">
+                            ${formatearEstadoCuota(item.estado)}
                         </div>
 
                         <div class="timeline-content">
-
-                            <strong>
-                                ${escapeHTMLMisPagos(
-                                    item.usuarioNombre || "Sistema"
-                                )}
-                            </strong>
-
-                            <p>
-                                ${escapeHTMLMisPagos(
-                                    item.observacion || "-"
-                                )}
-                            </p>
-
-                            <small>
-                                ${formatearFechaPago(
-                                    item.fecha
-                                )}
-                            </small>
-
+                            <strong>${escapeHTMLMisPagos(item.usuarioNombre || "Sistema")}</strong>
+                            <p>${escapeHTMLMisPagos(item.observacion || "-")}</p>
+                            <small>${formatearFechaPago(item.fecha)}</small>
                         </div>
-
                     </div>
-
                 `).join("")}
-
             </div>
-
         </section>
     `;
 }
@@ -669,45 +640,29 @@ function renderizarHistorialCuotaResidente(cuota) {
 ========================================================= */
 
 function configurarModalRegistrarPago() {
+    document.getElementById("cerrarModalRegistrarPago")
+        ?.addEventListener("click", () => {
+            cerrarModalMisPagos("modalRegistrarPago");
+        });
 
-    document.getElementById(
-        "cerrarModalRegistrarPago"
-    )?.addEventListener("click", () => {
+    document.getElementById("btnCancelarPagoResidente")
+        ?.addEventListener("click", () => {
+            cerrarModalMisPagos("modalRegistrarPago");
+        });
 
-        cerrarModalMisPagos(
-            "modalRegistrarPago"
-        );
-    });
-
-    document.getElementById(
-        "btnCancelarPagoResidente"
-    )?.addEventListener("click", () => {
-
-        cerrarModalMisPagos(
-            "modalRegistrarPago"
-        );
-    });
-
-    document.getElementById(
-        "formRegistrarPago"
-    )?.addEventListener("submit", registrarPagoResidente);
+    document.getElementById("formRegistrarPago")
+        ?.addEventListener("submit", registrarPagoResidente);
 
     window.addEventListener("click", event => {
-
-        const modal = document.getElementById(
-            "modalRegistrarPago"
-        );
+        const modal = document.getElementById("modalRegistrarPago");
 
         if (event.target === modal) {
-            cerrarModalMisPagos(
-                "modalRegistrarPago"
-            );
+            cerrarModalMisPagos("modalRegistrarPago");
         }
     });
 }
 
 function abrirModalRegistrarPago(idCuota) {
-
     const cuota = obtenerCuotaPorId(idCuota);
 
     if (!cuota) {
@@ -715,94 +670,53 @@ function abrirModalRegistrarPago(idCuota) {
         return;
     }
 
-    document.getElementById("cuotaPagoId").value =
-        cuota.id;
+    const form = document.getElementById("formRegistrarPago");
 
-    document.getElementById(
-        "montoPagoResidente"
-    ).value = cuota.monto;
+    if (form) {
+        form.reset();
+    }
 
-    document.getElementById(
-        "fechaPagoResidente"
-    ).value = obtenerFechaHoyMisPagos();
+    document.getElementById("cuotaPagoId").value = cuota.id;
+    document.getElementById("montoPagoResidente").value = cuota.monto;
+    document.getElementById("fechaPagoResidente").value = obtenerFechaHoyMisPagos();
 
-    document.getElementById(
-        "formRegistrarPago"
-    )?.reset();
-
-    document.getElementById("cuotaPagoId").value =
-        cuota.id;
-
-    document.getElementById(
-        "montoPagoResidente"
-    ).value = cuota.monto;
-
-    document.getElementById(
-        "fechaPagoResidente"
-    ).value = obtenerFechaHoyMisPagos();
-
-    abrirModalMisPagos(
-        "modalRegistrarPago"
-    );
+    abrirModalMisPagos("modalRegistrarPago");
 }
 
 async function registrarPagoResidente(event) {
-
     event.preventDefault();
 
-    const cuotaId = document.getElementById(
-        "cuotaPagoId"
-    )?.value || "";
+    const cuotaId = document.getElementById("cuotaPagoId")?.value || "";
 
     const voucher = await obtenerArchivoBase64MisPagos(
-        document.getElementById(
-            "voucherPagoResidente"
-        )
+        document.getElementById("voucherPagoResidente")
     );
 
     const datos = {
         cuotaId,
-        banco:
-            document.getElementById(
-                "bancoPagoResidente"
-            )?.value || "",
-
-        numeroOperacion:
-            document.getElementById(
-                "numeroOperacionPago"
-            )?.value || "",
-
-        fechaPago:
-            document.getElementById(
-                "fechaPagoResidente"
-            )?.value || "",
-
-        montoDeclarado:
-            document.getElementById(
-                "montoPagoResidente"
-            )?.value || "",
-
+        banco: document.getElementById("bancoPagoResidente")?.value || "",
+        numeroOperacion: document.getElementById("numeroOperacionPago")?.value || "",
+        fechaPago: document.getElementById("fechaPagoResidente")?.value || "",
+        montoDeclarado: document.getElementById("montoPagoResidente")?.value || "",
         voucher
     };
 
-    const resultado = registrarComprobantePago(
-        datos
-    );
+    const resultado = registrarComprobantePago(datos);
 
     if (!resultado.ok) {
         alert(resultado.error);
         return;
     }
 
-    cerrarModalMisPagos(
-        "modalRegistrarPago"
-    );
+    cerrarModalMisPagos("modalRegistrarPago");
+
+    if (typeof ejecutarRecordatoriosAutomaticos === "function") {
+        ejecutarRecordatoriosAutomaticos();
+    }
 
     cargarPaginaMisPagos();
 
-    alert(
-        "Comprobante enviado correctamente."
-    );
+    alert("Comprobante enviado correctamente.");
 }
 
 /* =========================================================
@@ -810,32 +724,21 @@ async function registrarPagoResidente(event) {
 ========================================================= */
 
 function configurarModalVerVoucher() {
-
-    document.getElementById(
-        "cerrarModalVerVoucherResidente"
-    )?.addEventListener("click", () => {
-
-        cerrarModalMisPagos(
-            "modalVerVoucherResidente"
-        );
-    });
+    document.getElementById("cerrarModalVerVoucherResidente")
+        ?.addEventListener("click", () => {
+            cerrarModalMisPagos("modalVerVoucherResidente");
+        });
 
     window.addEventListener("click", event => {
-
-        const modal = document.getElementById(
-            "modalVerVoucherResidente"
-        );
+        const modal = document.getElementById("modalVerVoucherResidente");
 
         if (event.target === modal) {
-            cerrarModalMisPagos(
-                "modalVerVoucherResidente"
-            );
+            cerrarModalMisPagos("modalVerVoucherResidente");
         }
     });
 }
 
 function verVoucherResidente(idPago) {
-
     const pago = obtenerPagoPorId(idPago);
 
     if (!pago) {
@@ -843,26 +746,18 @@ function verVoucherResidente(idPago) {
         return;
     }
 
-    const visor = document.getElementById(
-        "visorVoucherResidente"
-    );
+    const visor = document.getElementById("visorVoucherResidente");
 
     if (!visor) return;
 
-    if (
-        String(pago.voucher)
-            .includes("application/pdf")
-    ) {
-
+    if (String(pago.voucher).includes("application/pdf")) {
         visor.innerHTML = `
             <iframe
                 src="${pago.voucher}"
                 class="pdf-viewer"
             ></iframe>
         `;
-
     } else {
-
         visor.innerHTML = `
             <img
                 src="${pago.voucher}"
@@ -872,9 +767,7 @@ function verVoucherResidente(idPago) {
         `;
     }
 
-    abrirModalMisPagos(
-        "modalVerVoucherResidente"
-    );
+    abrirModalMisPagos("modalVerVoucherResidente");
 }
 
 /* =========================================================
@@ -882,14 +775,8 @@ function verVoucherResidente(idPago) {
 ========================================================= */
 
 function obtenerArchivoBase64MisPagos(input) {
-
     return new Promise(resolve => {
-
-        if (
-            !input ||
-            !input.files ||
-            input.files.length === 0
-        ) {
+        if (!input || !input.files || input.files.length === 0) {
             resolve("");
             return;
         }
@@ -900,15 +787,9 @@ function obtenerArchivoBase64MisPagos(input) {
         const maxBytes = maxMB * 1024 * 1024;
 
         if (archivo.size > maxBytes) {
-
-            alert(
-                `El archivo no debe superar ${maxMB}MB.`
-            );
-
+            alert(`El archivo no debe superar ${maxMB}MB.`);
             input.value = "";
-
             resolve("");
-
             return;
         }
 
@@ -932,18 +813,14 @@ function obtenerArchivoBase64MisPagos(input) {
 ========================================================= */
 
 function obtenerSesionMisPagos() {
-
     try {
-        return JSON.parse(
-            localStorage.getItem("usuarioSesion")
-        );
+        return JSON.parse(localStorage.getItem("usuarioSesion"));
     } catch (error) {
         return null;
     }
 }
 
 function abrirModalMisPagos(id) {
-
     const modal = document.getElementById(id);
 
     if (modal) {
@@ -952,7 +829,6 @@ function abrirModalMisPagos(id) {
 }
 
 function cerrarModalMisPagos(id) {
-
     const modal = document.getElementById(id);
 
     if (modal) {
@@ -961,23 +837,28 @@ function cerrarModalMisPagos(id) {
 }
 
 function obtenerFechaHoyMisPagos() {
-
     const hoy = new Date();
 
     const year = hoy.getFullYear();
-    const month = String(
-        hoy.getMonth() + 1
-    ).padStart(2, "0");
-
-    const day = String(
-        hoy.getDate()
-    ).padStart(2, "0");
+    const month = String(hoy.getMonth() + 1).padStart(2, "0");
+    const day = String(hoy.getDate()).padStart(2, "0");
 
     return `${year}-${month}-${day}`;
 }
 
-function setTextMisPagos(id, valor) {
+function formatearMontoMisPagosSeguro(monto) {
+    if (typeof formatearMontoPago === "function") {
+        return formatearMontoPago(monto);
+    }
 
+    const numero = Number(monto);
+
+    return Number.isFinite(numero)
+        ? numero.toFixed(2)
+        : "0.00";
+}
+
+function setTextMisPagos(id, valor) {
     const elemento = document.getElementById(id);
 
     if (elemento) {
@@ -986,7 +867,6 @@ function setTextMisPagos(id, valor) {
 }
 
 function escapeHTMLMisPagos(texto) {
-
     return String(texto || "")
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
