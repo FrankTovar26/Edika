@@ -7,6 +7,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (requierePrimeraConfiguracion()) {
         cargarDashboardVacio();
         configurarFiltros();
+        configurarBotonLimpiarFiltros();
         configurarModal();
         mostrarModalPrimeraConfiguracion();
         return;
@@ -14,6 +15,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     cargarDashboard();
     configurarFiltros();
+    configurarBotonLimpiarFiltros();
     configurarModal();
 });
 
@@ -114,6 +116,15 @@ function cargarDashboardVacio() {
     setText("unidadesMantenimiento", 0);
     setText("porcentajeOcupacion", "0%");
 
+    const resumen = document.getElementById("resumenEdificios");
+    if (resumen) {
+        resumen.innerHTML = `
+            <p class="empty-text">
+                No hay edificios configurados o asignados.
+            </p>
+        `;
+    }
+
     const filtroPiso = document.getElementById("filtroPiso");
     if (filtroPiso) {
         filtroPiso.innerHTML = `<option value="">Todos</option>`;
@@ -143,6 +154,7 @@ function cargarDashboard() {
     cargarFiltroEdificios(db);
     cargarFiltroPisos(db);
     actualizarEstadisticas(db);
+    renderizarResumenEdificios(db);
     renderizarUnidades(db);
 }
 
@@ -406,28 +418,58 @@ function configurarFiltros() {
         const elemento = document.getElementById(id);
 
         if (elemento) {
-            elemento.addEventListener("input", () => {
-                if (id === "filtroEdificio") {
-                    localStorage.setItem("edifika_dashboard_filtro_edificio", elemento.value);
-                    cargarFiltroPisos(obtenerTodo());
-                    cargarTituloEdificio(obtenerTodo());
-                    actualizarEstadisticas(obtenerTodo());
-                }
-
-                renderizarUnidades(obtenerTodo());
-            });
-
-            elemento.addEventListener("change", () => {
-                if (id === "filtroEdificio") {
-                    localStorage.setItem("edifika_dashboard_filtro_edificio", elemento.value);
-                    cargarFiltroPisos(obtenerTodo());
-                    cargarTituloEdificio(obtenerTodo());
-                    actualizarEstadisticas(obtenerTodo());
-                }
-
-                renderizarUnidades(obtenerTodo());
-            });
+            elemento.addEventListener("input", actualizarDashboardPorFiltros);
+            elemento.addEventListener("change", actualizarDashboardPorFiltros);
         }
+    });
+}
+
+function actualizarDashboardPorFiltros(event) {
+    const id = event?.target?.id || "";
+    const db = obtenerTodo();
+
+    if (id === "filtroEdificio") {
+        localStorage.setItem(
+            "edifika_dashboard_filtro_edificio",
+            event.target.value
+        );
+
+        cargarFiltroPisos(db);
+        cargarTituloEdificio(db);
+    }
+
+    actualizarEstadisticas(db);
+    renderizarResumenEdificios(db);
+    renderizarUnidades(db);
+}
+
+function configurarBotonLimpiarFiltros() {
+    const boton = document.getElementById("btnLimpiarFiltros");
+
+    if (!boton) return;
+
+    boton.addEventListener("click", () => {
+        localStorage.removeItem("edifika_dashboard_filtro_edificio");
+
+        const filtroEdificio = document.getElementById("filtroEdificio");
+        const filtroBusqueda = document.getElementById("filtroBusqueda");
+        const filtroPiso = document.getElementById("filtroPiso");
+        const filtroTipo = document.getElementById("filtroTipo");
+        const filtroEstado = document.getElementById("filtroEstado");
+
+        if (filtroEdificio) filtroEdificio.value = "";
+        if (filtroBusqueda) filtroBusqueda.value = "";
+        if (filtroPiso) filtroPiso.value = "";
+        if (filtroTipo) filtroTipo.value = "";
+        if (filtroEstado) filtroEstado.value = "";
+
+        const db = obtenerTodo();
+
+        cargarFiltroPisos(db);
+        cargarTituloEdificio(db);
+        actualizarEstadisticas(db);
+        renderizarResumenEdificios(db);
+        renderizarUnidades(db);
     });
 }
 
@@ -498,6 +540,71 @@ function actualizarEstadisticas(db) {
     setText("unidadesDisponibles", disponibles);
     setText("unidadesMantenimiento", mantenimiento);
     setText("porcentajeOcupacion", `${porcentaje}%`);
+}
+
+function renderizarResumenEdificios(db) {
+    const contenedor = document.getElementById("resumenEdificios");
+
+    if (!contenedor) return;
+
+    let edificios = obtenerEdificiosVisiblesDashboard(db);
+    const filtroEdificio = document.getElementById("filtroEdificio")?.value || "";
+
+    if (filtroEdificio) {
+        edificios = edificios.filter(edificio =>
+            String(edificio.id) === String(filtroEdificio)
+        );
+    }
+
+    if (edificios.length === 0) {
+        contenedor.innerHTML = `
+            <p class="empty-text">
+                No hay edificios activos para mostrar.
+            </p>
+        `;
+        return;
+    }
+
+    contenedor.innerHTML = edificios.map(edificio => {
+        const unidades = obtenerUnidadesPermitidasDashboard(db).filter(u =>
+            String(u.edificioId) === String(edificio.id)
+        );
+
+        const total = unidades.length;
+        const departamentos = unidades.filter(u => normalizarTipoUnidad(u.tipo) === "departamento").length;
+        const estacionamientos = unidades.filter(u => normalizarTipoUnidad(u.tipo) === "estacionamiento").length;
+        const depositos = unidades.filter(u => normalizarTipoUnidad(u.tipo) === "deposito").length;
+        const oficinas = unidades.filter(u => normalizarTipoUnidad(u.tipo) === "oficina").length;
+
+        const ocupadas = unidades.filter(u => obtenerEstadoRealUnidad(u) === "ocupada").length;
+        const disponibles = unidades.filter(u => obtenerEstadoRealUnidad(u) === "disponible").length;
+        const mantenimiento = unidades.filter(u => obtenerEstadoRealUnidad(u) === "mantenimiento").length;
+
+        const porcentaje = total > 0 ? Math.round((ocupadas / total) * 100) : 0;
+
+        return `
+            <div class="resumen-edificio-card">
+                <div class="resumen-edificio-header">
+                    <h3>${edificio.nombre}</h3>
+                    <span class="badge ${edificio.activo !== false ? "vacio" : "inactivo"}">
+                        ${edificio.activo !== false ? "Activo" : "Inactivo"}
+                    </span>
+                </div>
+
+                <div class="resumen-edificio-metrics">
+                    <span><strong>${total}</strong><br>Total</span>
+                    <span><strong>${departamentos}</strong><br>Departamentos</span>
+                    <span><strong>${estacionamientos}</strong><br>Estacionamientos</span>
+                    <span><strong>${depositos}</strong><br>Depósitos</span>
+                    <span><strong>${oficinas}</strong><br>Oficinas</span>
+                    <span><strong>${ocupadas}</strong><br>Ocupadas</span>
+                    <span><strong>${disponibles}</strong><br>Disponibles</span>
+                    <span><strong>${mantenimiento}</strong><br>Mantenimiento</span>
+                    <span><strong>${porcentaje}%</strong><br>Ocupación</span>
+                </div>
+            </div>
+        `;
+    }).join("");
 }
 
 function renderizarUnidades(db) {

@@ -12,62 +12,121 @@
 <nav id="sidebar"></nav>
 
 <main>
-    <h1 id="tituloEdificio">Cargando...</h1>
+    <section class="page-header">
+        <div>
+            <h1 id="tituloEdificio">Cargando...</h1>
+            <p class="page-subtitle">
+                Resumen general de unidades, ocupación y disponibilidad por edificio.
+            </p>
+        </div>
+
+        <div class="page-actions">
+            <a href="config.html" class="btn btn-blue">
+                + Configurar edificio
+            </a>
+
+            <a href="departamentos.html" class="btn btn-green">
+                Gestionar unidades
+            </a>
+        </div>
+    </section>
 
     <section class="stats-grid">
-        <div class="card">
+        <div class="card stat-card">
+            <span class="stat-icon">🏢</span>
             <span class="stat-number" id="totalUnidades">0</span>
             <label>Total unidades</label>
         </div>
 
-        <div class="card">
+        <div class="card stat-card">
+            <span class="stat-icon">🏠</span>
             <span class="stat-number" id="totalDepartamentos">0</span>
             <label>Departamentos</label>
         </div>
 
-        <div class="card">
+        <div class="card stat-card">
+            <span class="stat-icon">🚗</span>
             <span class="stat-number" id="totalEstacionamientos">0</span>
             <label>Estacionamientos</label>
         </div>
 
-        <div class="card">
+        <div class="card stat-card">
+            <span class="stat-icon">📦</span>
             <span class="stat-number" id="totalDepositos">0</span>
             <label>Depósitos</label>
         </div>
 
-        <div class="card">
+        <div class="card stat-card">
+            <span class="stat-icon">🏬</span>
             <span class="stat-number" id="totalOficinas">0</span>
             <label>Oficinas / locales</label>
         </div>
 
-        <div class="card">
+        <div class="card stat-card">
+            <span class="stat-icon">🔴</span>
             <span class="stat-number" id="unidadesOcupadas">0</span>
             <label>Ocupadas</label>
         </div>
 
-        <div class="card">
+        <div class="card stat-card">
+            <span class="stat-icon">🟢</span>
             <span class="stat-number" id="unidadesDisponibles">0</span>
             <label>Disponibles</label>
         </div>
 
-        <div class="card">
+        <div class="card stat-card">
+            <span class="stat-icon">🛠️</span>
             <span class="stat-number" id="unidadesMantenimiento">0</span>
             <label>Mantenimiento</label>
         </div>
 
-        <div class="card">
+        <div class="card stat-card">
+            <span class="stat-icon">📊</span>
             <span class="stat-number" id="porcentajeOcupacion">0%</span>
             <label>Ocupación</label>
         </div>
     </section>
 
     <section class="card">
-        <h2>Filtros</h2>
+        <div class="section-header">
+            <div>
+                <h2>Resumen por edificio</h2>
+                <p class="section-subtitle">
+                    Visualiza rápidamente la distribución de unidades por cada edificio activo.
+                </p>
+            </div>
+        </div>
+
+        <div id="resumenEdificios" class="resumen-edificios-grid">
+            <p class="empty-text">Cargando resumen...</p>
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="section-header">
+            <div>
+                <h2>Filtros</h2>
+                <p class="section-subtitle">
+                    Filtra unidades por edificio, ubicación, tipo o estado.
+                </p>
+            </div>
+
+            <button class="btn btn-secondary" id="btnLimpiarFiltros">
+                Limpiar filtros
+            </button>
+        </div>
 
         <div class="form-group-container">
             <div class="group">
+                <label for="filtroEdificio">Edificio</label>
+                <select id="filtroEdificio">
+                    <option value="">Todos los edificios</option>
+                </select>
+            </div>
+
+            <div class="group">
                 <label for="filtroBusqueda">Buscar unidad</label>
-                <input type="text" id="filtroBusqueda" placeholder="Ej: 1-A, E-01, D-01, OF-101">
+                <input type="text" id="filtroBusqueda" placeholder="Ej: 101, E-S1-01, OF-101">
             </div>
 
             <div class="group">
@@ -102,12 +161,20 @@
     </section>
 
     <section class="card">
-        <h2>Unidades</h2>
+        <div class="section-header">
+            <div>
+                <h2>Unidades</h2>
+                <p class="section-subtitle">
+                    Listado de unidades registradas y generadas por edificio.
+                </p>
+            </div>
+        </div>
 
         <div class="table-container">
             <table>
                 <thead>
                     <tr>
+                        <th>Edificio</th>
                         <th>Unidad</th>
                         <th>Ubicación</th>
                         <th>Tipo</th>
@@ -116,8 +183,11 @@
                         <th>Acción</th>
                     </tr>
                 </thead>
+
                 <tbody id="tablaUnidades">
-                    <!-- Se llena con JS -->
+                    <tr>
+                        <td colspan="7">Cargando unidades...</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -143,7 +213,7 @@
             Para usar el sistema EDIFIKA, primero debes registrar la configuración inicial del edificio.
         </p>
 
-        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+        <div class="form-actions" style="justify-content: flex-end;">
             <button class="btn btn-secondary" id="btnCancelarPrimeraConfig">
                 Más tarde
             </button>
@@ -155,8 +225,8 @@
     </div>
 </div>
 
-<script src="../../assets/js/components/sidebar.js"></script>
 <script src="../../assets/js/core/data.js"></script>
+<script src="../../assets/js/components/sidebar.js"></script>
 <script src="../../assets/js/pages/dashboard.js"></script>
 </body>
 </html>
